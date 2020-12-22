@@ -323,7 +323,7 @@ class bot():
         def _accept_format(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._accept_format')
             if self._you_exist(update, context):
-                value = update.message.text
+                value = update.message.text.lower()
                 if value not in ANSWER_FORMATS:
                     update.message.reply_text(
                         "Hey ... this is not a format I know!!\nPlease choose between "+ ', '.join(ANSWER_FORMATS)
