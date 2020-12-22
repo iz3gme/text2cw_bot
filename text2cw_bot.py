@@ -18,7 +18,17 @@ import subprocess
 from os import remove, rename
 import re
 
-MAIN, TYPING_WPM, TYPING_SNR, TYPING_TONE, TYPING_TITLE = range(5)
+MAIN, TYPING_WPM, TYPING_SNR, TYPING_TONE, TYPING_TITLE, TYPING_FORMAT = range(6)
+
+ANSWER_FORMATS = ['voice', 'audio']
+
+DEFAULTS = [
+    ('wpm', 25),
+    ('tone', 600),
+    ('snr', None),
+    ('title', 'CW Text'),
+    ('format', ANSWER_FORMATS[0]),
+]
 
 class bot():
 
@@ -46,6 +56,8 @@ class bot():
                 "    When set a noise background is added, valid values are -10 to 10 (in db), set to NONE to disable",
                 "/title",
                 "    Set answer file name",
+                "/format",
+                "    Choose between voice and audio anwer format",
             ])
 
         @property
@@ -56,6 +68,7 @@ class bot():
                         KeyboardButton('/wpm'),
                         KeyboardButton('/tone'),
                         KeyboardButton('/snr'),
+                        KeyboardButton('/format'),
                     ],
                     [
                         KeyboardButton('/title'),
@@ -81,21 +94,38 @@ class bot():
             )
             return replymarkup
 
+        @property
+        def _keyboard_formats(self):
+            replymarkup = ReplyKeyboardMarkup(
+                [
+                    [
+                        KeyboardButton(i) for i in ANSWER_FORMATS
+                    ],
+                    [
+                        KeyboardButton('/leave'),
+                    ],
+                ],
+                resize_keyboard=True,
+                one_time_keyboard=False
+            )
+            return replymarkup
+
+        def _default(self, data_dict, key, value):
+            if key not in data_dict:
+                data_dict[key] = value
+
         def _you_exist(self, update: Update, context: CallbackContext):
             if context.user_data and context.user_data['exist']:
             	return True
             else:
-                update.message.reply_text("You don't exist, go away!")
+                update.message.reply_text("Please use /start to begin")
             return False
 
         def _cmd_start(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._cmd_start')
-            if not (context.user_data and context.user_data['exist']):
-                context.user_data['wpm'] = 25
-                context.user_data['tone'] = 600
-                context.user_data['snr'] = None
-                context.user_data['title'] = 'CW Text'
-                context.user_data['exist'] = True
+            context.user_data['exist'] = True
+            for (key, value) in DEFAULTS:
+                self._default(context.user_data, key, value)
             update.message.reply_text(
                 'Hi ' + update.message.from_user.first_name + '\n' + self._helptext,
                 reply_markup=self._keyboard
@@ -256,16 +286,36 @@ class bot():
                             "Sorry - I can accept titles of 50 chars at most\nTry again"
                         )
                         
-        def _accept_nosnr(self, update: Update, context: CallbackContext) -> None:
-            logging.debug('bot._accept_nosnr')
+        def _cmd_format(self, update: Update, context: CallbackContext) -> None:
+            logging.debug('bot._cmd_format')
             if self._you_exist(update, context):
-                context.user_data["snr"] = None 	    
                 update.message.reply_text(
-                    "Ok - no noise will be added",
-                    reply_markup=self._keyboard
+                    "\n".join([
+                        "Current format is %s" % context.user_data["format"],
+                        "I can send cw as either " + ' or '.join(ANSWER_FORMATS),
+                        "Which one you prefere?"
+                    ]),
+                    reply_markup=self._keyboard_formats
                 )
-                return MAIN
-                        
+                return TYPING_FORMAT
+
+        def _accept_format(self, update: Update, context: CallbackContext) -> None:
+            logging.debug('bot._accept_format')
+            if self._you_exist(update, context):
+                value = update.message.text
+                if value not in ANSWER_FORMATS:
+                    update.message.reply_text(
+                        "Hey ... this is not a format I know!!\nPlease choose between "+ ', '.join(ANSWER_FORMATS)
+                    )
+                    return None
+                else:
+                    context.user_data["format"] = value
+                    update.message.reply_text(
+                        "Ok - format is now %s" % value,
+                        reply_markup=self._keyboard
+                    )
+                    return MAIN
+
         def _cmd_leave(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._cmd_leave')
             if self._you_exist(update, context):
@@ -287,8 +337,9 @@ class bot():
                 tone = context.user_data['tone']
                 snr = context.user_data['snr']
                 title = context.user_data['title']
+                format = context.user_data['format']
                 
-                tempfilename = "/tmp/" + update.message.from_user.first_name + "_" + title
+                tempfilename = "/tmp/" + update.message.from_user.first_name + "_" + str(update.message.message_id) + "_" + title
                 command = ["/usr/bin/ebook2cw", "-c", "DONOTSEPARATECHAPTERS", "-o", tempfilename, "-u"]
                 command.extend(["-w", str(wpm)])
                 command.extend(["-f", str(tone)])
@@ -297,13 +348,18 @@ class bot():
                 command.extend(["-a", update.message.from_user.first_name])
                 
                 subprocess.run(command, input=bytes(update.message.text+"\n", encoding='utf8'))
-                rename(tempfilename+"0000.mp3", tempfilename+".mp3")
-                tempfilename += ".mp3"
-                update.message.reply_audio(audio=open(tempfilename, "rb"), title=title)
+                tempfilename += "0000.mp3" # ebook2cw always add chapternumber and extension
+                if format == "audio":
+                     newtempfilename = "/tmp/" + update.message.from_user.first_name + "_" + "_" + title + ".mp3"
+                     rename(tempfilename, newtempfilename)
+                     tempfilename = newtempfilename
+                     update.message.reply_audio(audio=open(tempfilename, "rb"), title=title)
+                else: #default to voice format
+                    update.message.reply_voice(voice=open(tempfilename, "rb"), caption=title)
                 remove(tempfilename)
 
         def start(self, token):
-            pp = PicklePersistence(filename='text2morse_bot')
+            pp = PicklePersistence(filename='text2cw_bot.data')
             self._updater = Updater(token, persistence=pp, use_context=True)
 
             # Add conversation handler with the states MAIN and TYPING_VALUE
@@ -317,6 +373,7 @@ class bot():
                         CommandHandler('tone', self._cmd_tone),
                         CommandHandler('snr', self._cmd_snr),
                         CommandHandler('title', self._cmd_title),
+                        CommandHandler('format', self._cmd_format),
                         MessageHandler(Filters.text & ~Filters.command, self._handle_text),
                     ],
                     TYPING_WPM: [
@@ -346,6 +403,12 @@ class bot():
                         ),
                         CommandHandler('leave', self._cmd_leave),
                     ],
+                    TYPING_FORMAT: [
+                        MessageHandler(
+                            Filters.text & ~Filters.command, self._accept_format
+                        ),
+                        CommandHandler('leave', self._cmd_leave),
+                    ],
                 },
                 fallbacks=[MessageHandler(Filters.all, self._handle_unknown)],
                 name="my_conversation",
@@ -353,6 +416,7 @@ class bot():
             )
 
             self._updater.dispatcher.add_handler(conv_handler)
+            self._updater.dispatcher.add_handler(MessageHandler(Filters.all, self._handle_unknown))
 
             self._updater.start_polling(bootstrap_retries=-1)
 
