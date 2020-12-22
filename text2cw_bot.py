@@ -18,7 +18,7 @@ import subprocess
 from os import remove, rename
 import re
 
-MAIN, TYPING_WPM, TYPING_SNR, TYPING_TONE, TYPING_TITLE, TYPING_FORMAT = range(6)
+MAIN, TYPING_WPM, TYPING_SNR, TYPING_TONE, TYPING_TITLE, TYPING_FORMAT, TYPING_DELMESSAGE = range(7)
 
 ANSWER_FORMATS = ['voice', 'audio']
 
@@ -28,6 +28,7 @@ DEFAULTS = [
     ('snr', None),
     ('title', 'CW Text'),
     ('format', ANSWER_FORMATS[0]),
+    ('delmessage', False),
 ]
 
 class bot():
@@ -58,6 +59,8 @@ class bot():
                 "    Set answer file name",
                 "/format",
                 "    Choose between voice and audio anwer format",
+                "/delmessage",
+                "    Tell me if you want your messages to be deleted once converted",
             ])
 
         @property
@@ -71,6 +74,7 @@ class bot():
                         KeyboardButton('/format'),
                     ],
                     [
+                        KeyboardButton('/delmessage'),
                         KeyboardButton('/title'),
 #                        KeyboardButton('/settings'),
                         KeyboardButton('/help'),
@@ -100,6 +104,23 @@ class bot():
                 [
                     [
                         KeyboardButton(i) for i in ANSWER_FORMATS
+                    ],
+                    [
+                        KeyboardButton('/leave'),
+                    ],
+                ],
+                resize_keyboard=True,
+                one_time_keyboard=False
+            )
+            return replymarkup
+
+        @property
+        def _keyboard_yesno(self):
+            replymarkup = ReplyKeyboardMarkup(
+                [
+                    [
+                        "Yes",
+                        "No",
                     ],
                     [
                         KeyboardButton('/leave'),
@@ -316,6 +337,36 @@ class bot():
                     )
                     return MAIN
 
+        def _cmd_delmessage(self, update: Update, context: CallbackContext) -> None:
+            logging.debug('bot._cmd_delmessage')
+            if self._you_exist(update, context):
+                update.message.reply_text(
+                    "\n".join([
+                        "Previously you asked me to delete your messages" if context.user_data["delmessage"] else "Actually I dont delete your messages",
+                        "Do you want me to delete your messages?"
+                    ]),
+                    reply_markup=self._keyboard_yesno
+                )
+                return TYPING_DELMESSAGE
+
+        def _accept_delmessage(self, update: Update, context: CallbackContext) -> None:
+            logging.debug('bot._accept_delmessage')
+            if self._you_exist(update, context):
+                value = update.message.text.lower()
+                if value not in ["yes", "no"]:
+                    update.message.reply_text(
+                        "Please be serious, answer Yes or No"
+                    )
+                    return None
+                else:
+                    value = value == "yes"
+                    context.user_data["delmessage"] = value
+                    update.message.reply_text(
+                        "Ok - I'll delete messages from now on" if value else "OK - I'll leave your messages untouched",
+                        reply_markup=self._keyboard
+                    )
+                    return MAIN
+
         def _cmd_leave(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._cmd_leave')
             if self._you_exist(update, context):
@@ -338,6 +389,7 @@ class bot():
                 snr = context.user_data['snr']
                 title = context.user_data['title']
                 format = context.user_data['format']
+                delmessage = context.user_data['delmessage']
                 
                 tempfilename = "/tmp/" + update.message.from_user.first_name + "_" + str(update.message.message_id) + "_" + title
                 command = ["/usr/bin/ebook2cw", "-c", "DONOTSEPARATECHAPTERS", "-o", tempfilename, "-u"]
@@ -357,6 +409,9 @@ class bot():
                 else: #default to voice format
                     update.message.reply_voice(voice=open(tempfilename, "rb"), caption=title)
                 remove(tempfilename)
+                
+                if delmessage:
+                    update.message.delete()
 
         def start(self, token):
             pp = PicklePersistence(filename='text2cw_bot.data')
@@ -374,6 +429,7 @@ class bot():
                         CommandHandler('snr', self._cmd_snr),
                         CommandHandler('title', self._cmd_title),
                         CommandHandler('format', self._cmd_format),
+                        CommandHandler('delmessage', self._cmd_delmessage),
                         MessageHandler(Filters.text & ~Filters.command, self._handle_text),
                     ],
                     TYPING_WPM: [
@@ -406,6 +462,12 @@ class bot():
                     TYPING_FORMAT: [
                         MessageHandler(
                             Filters.text & ~Filters.command, self._accept_format
+                        ),
+                        CommandHandler('leave', self._cmd_leave),
+                    ],
+                    TYPING_DELMESSAGE: [
+                        MessageHandler(
+                            Filters.text & ~Filters.command, self._accept_delmessage
                         ),
                         CommandHandler('leave', self._cmd_leave),
                     ],
