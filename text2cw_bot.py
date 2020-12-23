@@ -43,11 +43,11 @@ class bot():
         def _helptext(self):
             return "\n".join([
                 "I can convert text to cw (Morse) audio",
-                "Just send me a message and I'll answer with the mp3 audio file",
+                "Just send me a message and I'll answer with the audio file",
                 "You can change speed, tone and file name using commands",
                 "(adding noise is not fully implemented yet)",
                 "",
-                "Shoud you find any bug please write to my creator @iz3gme",
+                "Should you find any bug please write to my creator @iz3gme",
                 "",
                 "I can understand this commands:", 
                 "/wpm",
