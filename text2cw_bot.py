@@ -309,7 +309,7 @@ class bot():
             if self._you_exist(update, context):
                 value = "none" if context.user_data["snr"] is None else "%idb" % context.user_data["snr"]
                 update.message.reply_text(
-                    "Current value is %s\nWhat is your desired snr (type none for no added noise at all)?" % value,
+                    "I have only a partial support for noise: after mixing signal with white noise audio will be filtered with a 500Hz filter centered at 800Hz,\nCurrent value is %s\nWhat is your desired snr (type none for no added noise at all)?" % value,
                     reply_markup=self._keyboard_leave
                 )
                 return TYPING_SNR
@@ -469,6 +469,7 @@ class bot():
                 if effectivewpm is not None: command.extend(["-e", str(effectivewpm)])
                 command.extend(["-f", str(tone)])
                 if snr is not None: command.extend(["-N", str(snr)])
+                command.extend(["-B", "500", "-C", "800"]) # add fixed settings for filter and center freq 
                 command.extend(["-t", title])
                 command.extend(["-a", update.message.from_user.first_name])
                 
