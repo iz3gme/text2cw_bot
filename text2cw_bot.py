@@ -19,12 +19,13 @@ import subprocess
 from os import remove, rename
 import re
 
-MAIN, TYPING_WPM, TYPING_SNR, TYPING_TONE, TYPING_TITLE, TYPING_FORMAT, TYPING_DELMESSAGE = range(7)
+MAIN, TYPING_WPM, TYPING_SNR, TYPING_TONE, TYPING_TITLE, TYPING_FORMAT, TYPING_DELMESSAGE, EFFECTIVEWPM, TYPING_EFFECTIVEWPM = range(9)
 
 ANSWER_FORMATS = ['voice', 'audio']
 
 DEFAULTS = [
     ('wpm', 25),
+    ('effectivewpm', None),
     ('tone', 600),
     ('snr', None),
     ('title', 'CW Text'),
@@ -52,6 +53,8 @@ class bot():
                 "I can understand this commands:", 
                 "/wpm",
                 "    Set speed in words per minute",
+                "/effectivewpm",
+                "    Set effective speed in words per minute, If set, the spaces are sent at this speed (\"Farnsworth\")",
                 "/tone",
                 "    Set tone frequency in Hertz",
                 "/snr",
@@ -80,6 +83,7 @@ class bot():
                 [
                     [
                         KeyboardButton('/wpm'),
+                        KeyboardButton('/effectivewpm'),
                         KeyboardButton('/tone'),
                         KeyboardButton('/snr'),
                         KeyboardButton('/format'),
@@ -145,10 +149,16 @@ class bot():
         def _default(self, data_dict, key, value):
             if key not in data_dict:
                 data_dict[key] = value
+                return True
+            return False
 
         def _you_exist(self, update: Update, context: CallbackContext):
             if context.user_data and context.user_data['exist']:
-            	return True
+                # check for each setting and set default if needed
+                for (key, value) in DEFAULTS:
+                    if self._default(context.user_data, key, value):
+                        update.message.reply_text("I now support a new setting, I set it to default for you (%s - %s)" % (key, str(value)))
+                return True
             else:
                 update.message.reply_text("Please use /start to begin")
             return False
@@ -156,8 +166,6 @@ class bot():
         def _cmd_start(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._cmd_start')
             context.user_data['exist'] = True
-            for (key, value) in DEFAULTS:
-                self._default(context.user_data, key, value)
             update.message.reply_text(
                 'Hi ' + update.message.from_user.first_name + '\n' + self._helptext,
                 reply_markup=self._keyboard
@@ -220,6 +228,49 @@ class bot():
                         update.message.reply_text(
                             "Sorry - Valid wpm is between 1 and 100\nTry again"
                         )
+
+        def _cmd_effectivewpm(self, update: Update, context: CallbackContext) -> None:
+            logging.debug('bot._cmd_effectivewpm')
+            if self._you_exist(update, context):
+                value = "none" if context.user_data["effectivewpm"] is None else "%iwpm" % context.user_data["effectivewpm"]
+                update.message.reply_text(
+                    "I can send spaces between words and letters at a different speed then text (usually slower for Farnsworth)\nCurrent value is %s\nWhat is your desired effective wpm (type none to have spaces sent at normal speed)?" % value,
+                    reply_markup=self._keyboard_leave
+                )
+                return TYPING_EFFECTIVEWPM
+
+        def _accept_effectivewpm(self, update: Update, context: CallbackContext) -> None:
+            logging.debug('bot._accept_effectivewpm')
+            if self._you_exist(update, context):
+                try:
+            	    value = int(update.message.text)
+                except ValueError:
+                    update.message.reply_text(
+                        "Hey ... this is not a number!!"
+                    )
+                    return None
+                else:
+                    if 1 <= value <= 100:
+                        context.user_data["effectivewpm"] = value 	    
+                        update.message.reply_text(
+                            "Ok - effective speed is now %iwpm" % value,
+                            reply_markup=self._keyboard
+                        )
+                        return MAIN
+                    else:
+                        update.message.reply_text(
+                            "Sorry - Valid effective wpm is between 1 and 100\nTry again"
+                        )
+                        
+        def _accept_noeffectivewpm(self, update: Update, context: CallbackContext) -> None:
+            logging.debug('bot._accept_noeffectivewpm')
+            if self._you_exist(update, context):
+                context.user_data["effectivewpm"] = None 	    
+                update.message.reply_text(
+                    "Ok - spaces will be sent at normal speed",
+                    reply_markup=self._keyboard
+                )
+                return MAIN
                         
         def _cmd_tone(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._cmd_tone')
@@ -405,6 +456,7 @@ class bot():
         def _handle_text(self, update: Update, context: CallbackContext) -> None:
             if self._you_exist(update, context):
                 wpm = context.user_data['wpm']
+                effectivewpm = context.user_data['effectivewpm']
                 tone = context.user_data['tone']
                 snr = context.user_data['snr']
                 title = context.user_data['title']
@@ -414,6 +466,7 @@ class bot():
                 tempfilename = "/tmp/" + update.message.from_user.first_name + "_" + str(update.message.message_id) + "_" + title
                 command = ["/usr/bin/ebook2cw", "-c", "DONOTSEPARATECHAPTERS", "-o", tempfilename, "-u"]
                 command.extend(["-w", str(wpm)])
+                if effectivewpm is not None: command.extend(["-e", str(effectivewpm)])
                 command.extend(["-f", str(tone)])
                 if snr is not None: command.extend(["-N", str(snr)])
                 command.extend(["-t", title])
@@ -445,6 +498,7 @@ class bot():
                         CommandHandler('help', self._cmd_help),
                         CommandHandler('stop', self._cmd_stop),
                         CommandHandler('wpm', self._cmd_wpm),
+                        CommandHandler('effectivewpm', self._cmd_effectivewpm),
                         CommandHandler('tone', self._cmd_tone),
                         CommandHandler('snr', self._cmd_snr),
                         CommandHandler('title', self._cmd_title),
@@ -456,6 +510,15 @@ class bot():
                     TYPING_WPM: [
                         MessageHandler(
                             Filters.text & ~Filters.command, self._accept_wpm
+                        ),
+                        CommandHandler('leave', self._cmd_leave),
+                    ],
+                    TYPING_EFFECTIVEWPM: [
+                        MessageHandler(
+                            Filters.text & ~(Filters.command | Filters.regex('^none$')), self._accept_effectivewpm
+                        ),
+                        MessageHandler(
+                            Filters.text & ~Filters.command & Filters.regex('^none$'), self._accept_noeffectivewpm
                         ),
                         CommandHandler('leave', self._cmd_leave),
                     ],
