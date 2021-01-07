@@ -1,7 +1,35 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""Implement simple telegram bot hiding all details"""
+""" Telegram bot which convert text messages to cw.
+
+This bot was born from ideas in https://t.me/cw_qrs chat to have another instrument
+to exercise cw, based on ebook2cw it answers any message you send it with the convertion
+to cw audio of the message itself.
+It was developped and tested on a rasperrypi but should run smoothly on any linux
+platform, please note that the code have been written in the perfect style of "it
+just works" 0=)
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+You should have received a copy of the GNU General Public License along with
+this program. If not, see <http://www.gnu.org/licenses/>.
+"""
+
+__author__ = "Marco Filippi IZ3GME"
+__authors__ = ["IZ3GME",]
+__contact__ = "iz3gme.marco@gmail.com"
+__copyright__ = "Copyright 2021 IZ3GME, Marco Filippi"
+__license__ = "GPLv3"
+__status__ = "Production"
+__version__ = "0.0.1"
+
 
 import logging
 
