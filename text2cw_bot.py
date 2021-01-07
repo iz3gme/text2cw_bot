@@ -193,7 +193,16 @@ class bot():
 
         def _cmd_start(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._cmd_start')
+
+            # silently set all settings to default at first connection
+            try:
+                if not context.user_data['exist']:
+                    pass
+            except KeyError:
+                for (key, value) in DEFAULTS:
+                    self._default(context.user_data, key, value)
             context.user_data['exist'] = True
+
             update.message.reply_text(
                 'Hi ' + update.message.from_user.first_name + '\n' + self._helptext,
                 reply_markup=self._keyboard
