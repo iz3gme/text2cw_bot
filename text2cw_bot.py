@@ -311,7 +311,7 @@ class bot():
                 if not context.user_data['exist']:
                     pass
             except KeyError:
-                for (key, value) in DEFAULTS:
+                for (key, value) in DEFAULTS.items():
                     self._default(context.user_data, key, value)
             context.user_data['exist'] = True
 
