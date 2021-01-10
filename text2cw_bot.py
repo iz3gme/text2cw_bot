@@ -499,7 +499,7 @@ class bot():
         def _cmd_qrq(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._cmd_qrq')
             if self._you_exist(update, context):
-                value = "none" if context.user_data["qrq"] is None else "%i minutes" % context.user_data["snr"]
+                value = "none" if context.user_data["qrq"] is None else "%i minutes" % context.user_data["qrq"]
                 update.message.reply_text(
                     "Current value is %s\nHow often (in minutes) should I increase speed (type none for no qrq)?" % value,
                     reply_markup=self._keyboard_leave
