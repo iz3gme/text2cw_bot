@@ -237,6 +237,20 @@ class bot():
             )
             return replymarkup
 
+        @property
+        def _keyboard_default(self):
+            replymarkup = ReplyKeyboardMarkup(
+                [
+                    [
+                        "Default",
+                        KeyboardButton('/leave'),
+                    ],
+                ],
+                resize_keyboard=True,
+                one_time_keyboard=False
+            )
+            return replymarkup
+
         def _default(self, data_dict, key, value):
             if key not in data_dict:
                 data_dict[key] = value
@@ -572,7 +586,7 @@ class bot():
             if self._you_exist(update, context):
                 update.message.reply_text(
                     "Current feed URL is\n%s\nPlease give the full URL of your RSS feed?\nType default if you want to reset to default feed" % context.user_data["feed"],
-                    reply_markup=self._keyboard_leave
+                    reply_markup=self._keyboard_default
                 )
                 return TYPING_FEED
 
