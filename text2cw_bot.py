@@ -79,7 +79,7 @@ def get_feed(feed_url, last_n=1):
     return cw_message
 
 
-MAIN, TYPING_WPM, TYPING_SNR, TYPING_TONE, TYPING_TITLE, TYPING_FORMAT, TYPING_DELMESSAGE, EFFECTIVEWPM, TYPING_EFFECTIVEWPM, TYPING_FEED, TYPING_NEWS_TO_READ, TYPING_SHOW_NEWS = range(12)
+MAIN, TYPING_WPM, TYPING_SNR, TYPING_TONE, TYPING_TITLE, TYPING_FORMAT, TYPING_DELMESSAGE, EFFECTIVEWPM, TYPING_EFFECTIVEWPM, TYPING_FEED, TYPING_NEWS_TO_READ, TYPING_SHOW_NEWS, TYPING_QRQ = range(13)
 
 ANSWER_FORMATS = ['voice', 'audio']
 
@@ -94,6 +94,7 @@ DEFAULTS = {
     'feed': "https://www.ansa.it/sito/ansait_rss.xml",
     'news to read': 5,
     'show news': False,
+    'qrq': None
 }
 
 class bot():
@@ -130,6 +131,8 @@ class bot():
                 "    Tell me if you want your messages to be deleted once converted",
                 "/feed",
                 "    Change feed source",
+                "/qrq",
+                "    Increase speed by 1 wpm in intervals of `minutes`",
                 "/news_to_read",
                 "    Set number of news to read from feed",
                 "/show_news",
@@ -168,6 +171,7 @@ class bot():
                     [
                         KeyboardButton('/delmessage'),
                         KeyboardButton('/title'),
+                        KeyboardButton('/qrq'),
                         KeyboardButton('/settings'),
                         KeyboardButton('/help'),
                     ],
@@ -275,11 +279,13 @@ class bot():
             snr = context.user_data['snr']
             title = context.user_data['title']
             format = context.user_data['format']
+            qrq = context.user_data['qrq']
 
             tempfilename = "/tmp/" + update.message.from_user.first_name + "_" + str(update.message.message_id) + "_" + title
             command = ["/usr/bin/ebook2cw", "-c", "DONOTSEPARATECHAPTERS", "-o", tempfilename, "-u"]
             command.extend(["-w", str(wpm)])
             if effectivewpm is not None: command.extend(["-e", str(effectivewpm)])
+            if qrq is not None: command.extend(["-Q", str(qrq)])
             command.extend(["-f", str(tone)])
             if snr is not None: command.extend(["-N", str(snr)])
             command.extend(["-B", "500", "-C", "800"]) # add fixed settings for filter and center freq 
@@ -486,6 +492,49 @@ class bot():
                 context.user_data["snr"] = None 	    
                 update.message.reply_text(
                     "Ok - no noise will be added",
+                    reply_markup=self._keyboard
+                )
+                return MAIN
+                        
+        def _cmd_qrq(self, update: Update, context: CallbackContext) -> None:
+            logging.debug('bot._cmd_qrq')
+            if self._you_exist(update, context):
+                value = "none" if context.user_data["qrq"] is None else "%i minutes" % context.user_data["snr"]
+                update.message.reply_text(
+                    "Current value is %s\nHow often (in minutes) should I increase speed (type none for no qrq)?" % value,
+                    reply_markup=self._keyboard_leave
+                )
+                return TYPING_QRQ
+
+        def _accept_qrq(self, update: Update, context: CallbackContext) -> None:
+            logging.debug('bot._accept_qrq')
+            if self._you_exist(update, context):
+                try:
+            	    value = int(update.message.text)
+                except ValueError:
+                    update.message.reply_text(
+                        "Hey ... this is not a number!!"
+                    )
+                    return None
+                else:
+                    if 1 <= value <= 60:
+                        context.user_data["qrq"] = value 	    
+                        update.message.reply_text(
+                            "Ok - qrq is now %i minutes" % value,
+                            reply_markup=self._keyboard
+                        )
+                        return MAIN
+                    else:
+                        update.message.reply_text(
+                            "Sorry - Valid qrq is between 1 and 60 minutes\nTry again"
+                        )
+                        
+        def _accept_noqrq(self, update: Update, context: CallbackContext) -> None:
+            logging.debug('bot._accept_noqrq')
+            if self._you_exist(update, context):
+                context.user_data["qrq"] = None 	    
+                update.message.reply_text(
+                    "Ok - no qrq",
                     reply_markup=self._keyboard
                 )
                 return MAIN
@@ -738,6 +787,7 @@ class bot():
                         CommandHandler('news_to_read', self._cmd_news_to_read),
                         CommandHandler('show_news', self._cmd_show_news),
                         CommandHandler('read_news', self._cmd_read_news),
+                        CommandHandler('qrq', self._cmd_qrq),
                         MessageHandler(Filters.text & ~Filters.command, self._handle_text),
                     ],
                     TYPING_WPM: [
@@ -752,6 +802,15 @@ class bot():
                         ),
                         MessageHandler(
                             Filters.text & ~Filters.command & Filters.regex('^none$'), self._accept_noeffectivewpm
+                        ),
+                        CommandHandler('leave', self._cmd_leave),
+                    ],
+                    TYPING_QRQ: [
+                        MessageHandler(
+                            Filters.text & ~(Filters.command | Filters.regex('^none$')), self._accept_qrq
+                        ),
+                        MessageHandler(
+                            Filters.text & ~Filters.command & Filters.regex('^none$'), self._accept_noqrq
                         ),
                         CommandHandler('leave', self._cmd_leave),
                     ],
