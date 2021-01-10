@@ -46,20 +46,55 @@ from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove, KeyboardB
 import subprocess
 from os import remove, rename
 import re
+from urllib.parse import urlparse
 
-MAIN, TYPING_WPM, TYPING_SNR, TYPING_TONE, TYPING_TITLE, TYPING_FORMAT, TYPING_DELMESSAGE, EFFECTIVEWPM, TYPING_EFFECTIVEWPM = range(9)
+# helper function to get latest news from an RSS feed
+import feedparser
+from time import strftime
+
+def get_feed(feed_url, last_n=1):
+    '''
+    Read RSS feed and format a CW message with lates news
+    
+        Parameters:
+            feed_url (str): full url of rss feed
+            last_n   (int): number of news to get counting from lates, 0 for all 
+        
+        Returns:
+            cw_message (str): resulting message or None if any error occours
+    '''
+    NewsFeed = feedparser.parse(feed_url)
+
+    if NewsFeed.bozo == 0:
+        news = { e.published_parsed:(strftime("%d/%m/%Y %H:%M", e.published_parsed), e.title, e.summary) for e in NewsFeed.entries}
+        articles = [" <BT> ".join(v) for k,v in sorted(news.items())[-last_n:]]
+
+        cw_message = "VVV VVV de " + NewsFeed.feed.title + " <AR> "
+        cw_message += " <AR> ".join(articles)
+        cw_message += " de " + NewsFeed.feed.title + " <SK>"
+        cw_message = ' '.join(cw_message.split())  #remove multiple spaces from message
+    else:
+        cw_message = None
+    
+    return cw_message
+
+
+MAIN, TYPING_WPM, TYPING_SNR, TYPING_TONE, TYPING_TITLE, TYPING_FORMAT, TYPING_DELMESSAGE, EFFECTIVEWPM, TYPING_EFFECTIVEWPM, TYPING_FEED, TYPING_NEWS_TO_READ, TYPING_SHOW_NEWS = range(12)
 
 ANSWER_FORMATS = ['voice', 'audio']
 
-DEFAULTS = [
-    ('wpm', 25),
-    ('effectivewpm', None),
-    ('tone', 600),
-    ('snr', None),
-    ('title', 'CW Text'),
-    ('format', ANSWER_FORMATS[0]),
-    ('delmessage', False),
-]
+DEFAULTS = {
+    'wpm': 25,
+    'effectivewpm': None,
+    'tone': 600,
+    'snr': None,
+    'title': 'CW Text',
+    'format': ANSWER_FORMATS[0],
+    'delmessage': False,
+    'feed': "https://www.ansa.it/sito/ansait_rss.xml",
+    'news to read': 5,
+    'show news': False,
+}
 
 class bot():
 
@@ -90,9 +125,17 @@ class bot():
                 "/title",
                 "    Set answer file name",
                 "/format",
-                "    Choose between voice and audio anwer format",
+                "    Choose between voice and audio answer format",
                 "/delmessage",
                 "    Tell me if you want your messages to be deleted once converted",
+                "/feed",
+                "    Change feed source",
+                "/news_to_read",
+                "    Set number of news to read from feed",
+                "/show_news",
+                "    Tell me if you want to have the news in clear text also",
+                "/read_news",
+                "    I'll read the feed for you and send news in cw",
                 "/settings",
                 "    show current settings",
                 "",
@@ -109,6 +152,12 @@ class bot():
         def _keyboard(self):
             replymarkup = ReplyKeyboardMarkup(
                 [
+                    [
+                        KeyboardButton('/feed'),
+                        KeyboardButton('/news_to_read'),
+                        KeyboardButton('/show_news'),
+                        KeyboardButton('/read_news'),
+                    ],
                     [
                         KeyboardButton('/wpm'),
                         KeyboardButton('/effectivewpm'),
@@ -174,6 +223,20 @@ class bot():
             )
             return replymarkup
 
+        @property
+        def _keyboard_all(self):
+            replymarkup = ReplyKeyboardMarkup(
+                [
+                    [
+                        "All",
+                        KeyboardButton('/leave'),
+                    ],
+                ],
+                resize_keyboard=True,
+                one_time_keyboard=False
+            )
+            return replymarkup
+
         def _default(self, data_dict, key, value):
             if key not in data_dict:
                 data_dict[key] = value
@@ -183,13 +246,42 @@ class bot():
         def _you_exist(self, update: Update, context: CallbackContext):
             if context.user_data and context.user_data['exist']:
                 # check for each setting and set default if needed
-                for (key, value) in DEFAULTS:
+                for (key, value) in DEFAULTS.items():
                     if self._default(context.user_data, key, value):
                         update.message.reply_text("I now support a new setting, I set it to default for you (%s - %s)" % (key, str(value)))
                 return True
             else:
                 update.message.reply_text("Please use /start to begin")
             return False
+
+        def _reply_with_audio(self, update: Update, context: CallbackContext, text, reply_markup=None) -> None:
+            wpm = context.user_data['wpm']
+            effectivewpm = context.user_data['effectivewpm']
+            tone = context.user_data['tone']
+            snr = context.user_data['snr']
+            title = context.user_data['title']
+            format = context.user_data['format']
+
+            tempfilename = "/tmp/" + update.message.from_user.first_name + "_" + str(update.message.message_id) + "_" + title
+            command = ["/usr/bin/ebook2cw", "-c", "DONOTSEPARATECHAPTERS", "-o", tempfilename, "-u"]
+            command.extend(["-w", str(wpm)])
+            if effectivewpm is not None: command.extend(["-e", str(effectivewpm)])
+            command.extend(["-f", str(tone)])
+            if snr is not None: command.extend(["-N", str(snr)])
+            command.extend(["-B", "500", "-C", "800"]) # add fixed settings for filter and center freq 
+            command.extend(["-t", title])
+            command.extend(["-a", update.message.from_user.first_name])
+            
+            subprocess.run(command, input=bytes(text+"\n", encoding='utf8'))
+            tempfilename += "0000.mp3" # ebook2cw always add chapternumber and extension
+            if format == "audio":
+                 newtempfilename = "/tmp/" + update.message.from_user.first_name + "_" + "_" + title + ".mp3"
+                 rename(tempfilename, newtempfilename)
+                 tempfilename = newtempfilename
+                 update.message.reply_audio(audio=open(tempfilename, "rb"), title=title, reply_markup=reply_markup)
+            else: #default to voice format
+                update.message.reply_voice(voice=open(tempfilename, "rb"), caption=title, reply_markup=reply_markup)
+            remove(tempfilename)
 
         def _cmd_start(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._cmd_start')
@@ -475,11 +567,123 @@ class bot():
                     )
                     return MAIN
 
+        def _cmd_feed(self, update: Update, context: CallbackContext) -> None:
+            logging.debug('bot._cmd_feed')
+            if self._you_exist(update, context):
+                update.message.reply_text(
+                    "Current feed URL is\n%s\nPlease give the full URL of your RSS feed?\nType default if you want to reset to default feed" % context.user_data["feed"],
+                    reply_markup=self._keyboard_leave
+                )
+                return TYPING_FEED
+
+        def _accept_feed(self, update: Update, context: CallbackContext) -> None:
+            logging.debug('bot._accept_feed')
+            if self._you_exist(update, context):
+                value = update.message.text
+                if value.lower() == 'default':
+                    value = DEFAULTS['feed']
+                if urlparse(value)[0] not in ('http', 'https', 'ftp', 'feed'):
+                    update.message.reply_text(
+                        "Hey ... this is not a valid URL!!"
+                    )
+                    return None
+                else:
+                    context.user_data["feed"] = value 	    
+                    update.message.reply_text(
+                        "Ok - I'll read news from\n%s\nHope you'll like it" % value,
+                        reply_markup=self._keyboard
+                    )
+                return MAIN
+
+        def _cmd_news_to_read(self, update: Update, context: CallbackContext) -> None:
+            logging.debug('bot._cmd_news_to_read')
+            if self._you_exist(update, context):
+                update.message.reply_text(
+                    "How many news do you want from the feed? (current value is %s)\nRemember that my reading speed is about 1 news/s so if you ask me 60 news I'll take about 1 minute to answer, if you are in a hurry please ask someone else :-P" % str(context.user_data["news to read"]),
+                    reply_markup=self._keyboard_leave
+                )
+                return TYPING_NEWS_TO_READ
+
+        def _accept_news_to_read(self, update: Update, context: CallbackContext) -> None:
+            logging.debug('bot._accept_news_to_read')
+            if self._you_exist(update, context):
+                last_n = update.message.text.lower()
+                try:
+                    last_n = int(last_n)
+                    if last_n < 1:
+                        update.message.reply_text(
+                            "Please answer with a number greater then 0"
+                        )
+                        return None
+                except ValueError:
+                    if last_n != 'all':
+                        update.message.reply_text(
+                            "Please give a number or all ... I wont accept anything else"
+                        )
+                        return None
+                update.message.reply_text(
+                    "Ok - I'll send you %s news" % str(last_n),
+                    reply_markup=self._keyboard
+                )
+                context.user_data["news to read"] = last_n
+                return MAIN
+                
+        def _cmd_show_news(self, update: Update, context: CallbackContext) -> None:
+            logging.debug('bot._cmd_show_news')
+            if self._you_exist(update, context):
+                update.message.reply_text(
+                    "\n".join([
+                        "Previously you asked me to show the news in clear text" if context.user_data["show news"] else "Actually I dont show the news text to you",
+                        "Do you want me to send the news text to you?"
+                    ]),
+                    reply_markup=self._keyboard_yesno
+                )
+                return TYPING_SHOW_NEWS
+
+        def _accept_show_news(self, update: Update, context: CallbackContext) -> None:
+            logging.debug('bot._accept_show_news')
+            if self._you_exist(update, context):
+                value = update.message.text.lower()
+                if value not in ["yes", "no"]:
+                    update.message.reply_text(
+                        "Please be serious, answer Yes or No"
+                    )
+                    return None
+                else:
+                    value = value == "yes"
+                    context.user_data["show news"] = value
+                    update.message.reply_text(
+                        "Ok - I'll show the news text to you from now on" if value else "OK - I'll keep the news text secret :-P",
+                        reply_markup=self._keyboard
+                    )
+                    return MAIN
+
+        def _cmd_read_news(self, update: Update, context: CallbackContext) -> None:
+            logging.debug('bot._cmd_read_news')
+            if self._you_exist(update, context):
+                feed = context.user_data["feed"]
+                last_n = context.user_data["news to read"]
+                show_news = context.user_data["show news"]
+                
+                last_n = last_n if last_n != 'all' else 0
+                try:
+                	text = get_feed(feed, last_n)
+                except:
+                	text = None
+                if text:
+                    if show_news:
+                        # send clear text adding a newline after each prosign
+                        update.message.reply_text(re.sub('(<..>)', r'\1\n', text))
+                    self._reply_with_audio(update, context, text, reply_markup=self._keyboard)
+                else:
+                    update.message.reply_text("Sorry but something goes wrong and I coudn't read the feed\nAre you sure you gave me a valid RSS feed URL?\nPlease start back with the command if you want to try again", reply_markup=self._keyboard)
+                return MAIN
+
         def _cmd_leave(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._cmd_leave')
             if self._you_exist(update, context):
                 update.message.reply_text(
-                    "Ok - leaving value unchanged",
+                    "Ok ... leaving value unchanged",
                     reply_markup=self._keyboard
                 )
                 return MAIN
@@ -492,35 +696,8 @@ class bot():
 
         def _handle_text(self, update: Update, context: CallbackContext) -> None:
             if self._you_exist(update, context):
-                wpm = context.user_data['wpm']
-                effectivewpm = context.user_data['effectivewpm']
-                tone = context.user_data['tone']
-                snr = context.user_data['snr']
-                title = context.user_data['title']
-                format = context.user_data['format']
                 delmessage = context.user_data['delmessage']
-                
-                tempfilename = "/tmp/" + update.message.from_user.first_name + "_" + str(update.message.message_id) + "_" + title
-                command = ["/usr/bin/ebook2cw", "-c", "DONOTSEPARATECHAPTERS", "-o", tempfilename, "-u"]
-                command.extend(["-w", str(wpm)])
-                if effectivewpm is not None: command.extend(["-e", str(effectivewpm)])
-                command.extend(["-f", str(tone)])
-                if snr is not None: command.extend(["-N", str(snr)])
-                command.extend(["-B", "500", "-C", "800"]) # add fixed settings for filter and center freq 
-                command.extend(["-t", title])
-                command.extend(["-a", update.message.from_user.first_name])
-                
-                subprocess.run(command, input=bytes(update.message.text+"\n", encoding='utf8'))
-                tempfilename += "0000.mp3" # ebook2cw always add chapternumber and extension
-                if format == "audio":
-                     newtempfilename = "/tmp/" + update.message.from_user.first_name + "_" + "_" + title + ".mp3"
-                     rename(tempfilename, newtempfilename)
-                     tempfilename = newtempfilename
-                     update.message.reply_audio(audio=open(tempfilename, "rb"), title=title)
-                else: #default to voice format
-                    update.message.reply_voice(voice=open(tempfilename, "rb"), caption=title)
-                remove(tempfilename)
-                
+                self._reply_with_audio(update, context, update.message.text)
                 if delmessage:
                     update.message.delete()
 
@@ -528,7 +705,7 @@ class bot():
             pp = PicklePersistence(filename='text2cw_bot.data')
             self._updater = Updater(token, persistence=pp, use_context=True)
 
-            # Add conversation handler with the states MAIN and TYPING_VALUE
+            # Add conversation handler for each state
             conv_handler = ConversationHandler(
                 entry_points=[CommandHandler('start', self._cmd_start)],
                 states={
@@ -543,6 +720,10 @@ class bot():
                         CommandHandler('format', self._cmd_format),
                         CommandHandler('delmessage', self._cmd_delmessage),
                         CommandHandler('settings', self._cmd_settings),
+                        CommandHandler('feed', self._cmd_feed),
+                        CommandHandler('news_to_read', self._cmd_news_to_read),
+                        CommandHandler('show_news', self._cmd_show_news),
+                        CommandHandler('read_news', self._cmd_read_news),
                         MessageHandler(Filters.text & ~Filters.command, self._handle_text),
                     ],
                     TYPING_WPM: [
@@ -590,6 +771,24 @@ class bot():
                     TYPING_DELMESSAGE: [
                         MessageHandler(
                             Filters.text & ~Filters.command, self._accept_delmessage
+                        ),
+                        CommandHandler('leave', self._cmd_leave),
+                    ],
+                    TYPING_FEED: [
+                        MessageHandler(
+                            Filters.text & ~Filters.command, self._accept_feed
+                        ),
+                        CommandHandler('leave', self._cmd_leave),
+                    ],
+                    TYPING_SHOW_NEWS: [
+                        MessageHandler(
+                            Filters.text & ~Filters.command, self._accept_show_news
+                        ),
+                        CommandHandler('leave', self._cmd_leave),
+                    ],
+                    TYPING_NEWS_TO_READ: [
+                        MessageHandler(
+                            Filters.text & ~Filters.command, self._accept_news_to_read
                         ),
                         CommandHandler('leave', self._cmd_leave),
                     ],
