@@ -341,7 +341,7 @@ class bot():
             logging.debug('bot._cmd_settings')
             if self._you_exist(update, context):
                 text = "Your current settings are:\n" + "\n".join([
-                    "%s\t%s" % (key, str(context.user_data[key])) for (key,default) in DEFAULTS
+                    "%s\t%s" % (key, str(context.user_data[key])) for (key,default) in DEFAULTS.items()
                 ])
                 update.message.reply_text(text)
                 return MAIN
