@@ -343,7 +343,7 @@ class bot():
             logging.debug('bot._accept_wpm')
             if self._you_exist(update, context):
                 try:
-            	    value = int(update.message.text)
+                    value = int(update.message.text)
                 except ValueError:
                     update.message.reply_text(
                         "Hey ... this is not a number!!"
@@ -375,12 +375,22 @@ class bot():
         def _accept_effectivewpm(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._accept_effectivewpm')
             if self._you_exist(update, context):
+                value = update.message.text
                 try:
-            	    value = int(update.message.text)
+                    value = int(value)
                 except ValueError:
-                    update.message.reply_text(
-                        "Hey ... this is not a number!!"
-                    )
+                    # not a number, may be none?
+                    if value.lower() == 'none':
+                        context.user_data["effectivewpm"] = None
+                        update.message.reply_text(
+                            "Ok - spaces will be sent at normal speed",
+                            reply_markup=self._keyboard
+                        )
+                        return MAIN
+                    else:
+                        update.message.reply_text(
+                            "Hey ... this is not a number!!"
+                        )
                     return None
                 else:
                     if 1 <= value <= 100:
@@ -394,16 +404,6 @@ class bot():
                         update.message.reply_text(
                             "Sorry - Valid effective wpm is between 1 and 100\nTry again"
                         )
-                        
-        def _accept_noeffectivewpm(self, update: Update, context: CallbackContext) -> None:
-            logging.debug('bot._accept_noeffectivewpm')
-            if self._you_exist(update, context):
-                context.user_data["effectivewpm"] = None 	    
-                update.message.reply_text(
-                    "Ok - spaces will be sent at normal speed",
-                    reply_markup=self._keyboard
-                )
-                return MAIN
                         
         def _cmd_tone(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._cmd_tone')
@@ -450,12 +450,21 @@ class bot():
         def _accept_snr(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._accept_snr')
             if self._you_exist(update, context):
+                value = update.message.text
                 try:
-            	    value = int(update.message.text)
+                    value = int(value)
                 except ValueError:
-                    update.message.reply_text(
-                        "Hey ... this is not a number!!"
-                    )
+                    if value.lower() == 'none':
+                        context.user_data["snr"] = None
+                        update.message.reply_text(
+                            "Ok - no noise will be added",
+                            reply_markup=self._keyboard
+                        )
+                        return MAIN
+                    else:
+                        update.message.reply_text(
+                            "Hey ... this is not a number!!"
+                        )
                     return None
                 else:
                     if -10 <= value <= 10:
@@ -470,16 +479,6 @@ class bot():
                             "Sorry - Valid snr is between -10 and 10\nTry again"
                         )
                         
-        def _accept_nosnr(self, update: Update, context: CallbackContext) -> None:
-            logging.debug('bot._accept_nosnr')
-            if self._you_exist(update, context):
-                context.user_data["snr"] = None 	    
-                update.message.reply_text(
-                    "Ok - no noise will be added",
-                    reply_markup=self._keyboard
-                )
-                return MAIN
-                        
         def _cmd_qrq(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._cmd_qrq')
             if self._you_exist(update, context):
@@ -493,12 +492,21 @@ class bot():
         def _accept_qrq(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._accept_qrq')
             if self._you_exist(update, context):
+                value = update.message.text
                 try:
-            	    value = int(update.message.text)
+                    value = int(value)
                 except ValueError:
-                    update.message.reply_text(
-                        "Hey ... this is not a number!!"
-                    )
+                    if value.lower() == 'none':
+                        context.user_data["qrq"] = None
+                        update.message.reply_text(
+                            "Ok - no qrq",
+                            reply_markup=self._keyboard
+                        )
+                        return MAIN
+                    else:
+                        update.message.reply_text(
+                            "Hey ... this is not a number!!"
+                        )
                     return None
                 else:
                     if 1 <= value <= 60:
@@ -512,16 +520,6 @@ class bot():
                         update.message.reply_text(
                             "Sorry - Valid qrq is between 1 and 60 minutes\nTry again"
                         )
-                        
-        def _accept_noqrq(self, update: Update, context: CallbackContext) -> None:
-            logging.debug('bot._accept_noqrq')
-            if self._you_exist(update, context):
-                context.user_data["qrq"] = None 	    
-                update.message.reply_text(
-                    "Ok - no qrq",
-                    reply_markup=self._keyboard
-                )
-                return MAIN
                         
         def _cmd_title(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._cmd_title')
@@ -774,19 +772,13 @@ class bot():
                     ],
                     TYPING_EFFECTIVEWPM: [
                         MessageHandler(
-                            Filters.text & ~(Filters.command | Filters.regex('^none$')), self._accept_effectivewpm
-                        ),
-                        MessageHandler(
-                            Filters.text & ~Filters.command & Filters.regex('^none$'), self._accept_noeffectivewpm
+                            Filters.text & ~Filters.command, self._accept_effectivewpm
                         ),
                         CommandHandler('leave', self._cmd_leave),
                     ],
                     TYPING_QRQ: [
                         MessageHandler(
-                            Filters.text & ~(Filters.command | Filters.regex('^none$')), self._accept_qrq
-                        ),
-                        MessageHandler(
-                            Filters.text & ~Filters.command & Filters.regex('^none$'), self._accept_noqrq
+                            Filters.text & ~Filters.command, self._accept_qrq
                         ),
                         CommandHandler('leave', self._cmd_leave),
                     ],
@@ -798,10 +790,7 @@ class bot():
                     ],
                     TYPING_SNR: [
                         MessageHandler(
-                            Filters.text & ~(Filters.command | Filters.regex('^none$')), self._accept_snr
-                        ),
-                        MessageHandler(
-                            Filters.text & ~Filters.command & Filters.regex('^none$'), self._accept_nosnr
+                            Filters.text & ~Filters.command, self._accept_snr
                         ),
                         CommandHandler('leave', self._cmd_leave),
                     ],
