@@ -138,7 +138,7 @@ class bot():
             ]
             for command, description, method in self._commands:
                 if command:
-                    message += [command, '    '+description]
+                    message += ['/'+command, '    '+description]
             message += [
                 "",
                 "TEXT COMMANDS",
