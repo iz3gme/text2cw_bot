@@ -226,6 +226,20 @@ class bot():
             return replymarkup
 
         @property
+        def _keyboard_none(self):
+            replymarkup = ReplyKeyboardMarkup(
+                [
+                    [
+                        "None",
+                        KeyboardButton('/leave'),
+                    ],
+                ],
+                resize_keyboard=True,
+                one_time_keyboard=False
+            )
+            return replymarkup
+
+        @property
         def _keyboard_default(self):
             replymarkup = ReplyKeyboardMarkup(
                 [
@@ -333,6 +347,9 @@ class bot():
         def _cmd_wpm(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._cmd_wpm')
             if self._you_exist(update, context):
+                if len(context.args) > 0:
+                    return self._set_wpm(update, context, context.args[0])
+
                 update.message.reply_text(
                     "Current value is %iwpm\nWhat is your desired speed?" % context.user_data["wpm"],
                     reply_markup=self._keyboard_leave
@@ -342,72 +359,83 @@ class bot():
         def _accept_wpm(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._accept_wpm')
             if self._you_exist(update, context):
-                try:
-                    value = int(update.message.text)
-                except ValueError:
+                return self._set_wpm(update, context, update.message.text)
+
+        def _set_wpm(self, update: Update, context: CallbackContext, value) -> None:
+            try:
+                value = int(value)
+            except ValueError:
+                update.message.reply_text(
+                    "Hey ... this is not a number!!"
+                )
+                return None
+            else:
+                if 1 <= value <= 100:
+                    context.user_data["wpm"] = value
                     update.message.reply_text(
-                        "Hey ... this is not a number!!"
+                        "Ok - speed is now %iwpm" % value,
+                        reply_markup=self._keyboard
                     )
-                    return None
+                    return MAIN
                 else:
-                    if 1 <= value <= 100:
-                        context.user_data["wpm"] = value 	    
-                        update.message.reply_text(
-                            "Ok - speed is now %iwpm" % value,
-                            reply_markup=self._keyboard
-                        )
-                        return MAIN
-                    else:
-                        update.message.reply_text(
-                            "Sorry - Valid wpm is between 1 and 100\nTry again"
-                        )
+                    update.message.reply_text(
+                        "Sorry - Valid wpm is between 1 and 100\nTry again"
+                    )
 
         def _cmd_effectivewpm(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._cmd_effectivewpm')
             if self._you_exist(update, context):
+                if len(context.args) > 0:
+                    return self._set_effectivewpm(update, context, context.args[0])
+
                 value = "none" if context.user_data["effectivewpm"] is None else "%iwpm" % context.user_data["effectivewpm"]
                 update.message.reply_text(
                     "I can send spaces between words and letters at a different speed then text (usually slower for Farnsworth)\nCurrent value is %s\nWhat is your desired effective wpm (type none to have spaces sent at normal speed)?" % value,
-                    reply_markup=self._keyboard_leave
+                    reply_markup=self._keyboard_none
                 )
                 return TYPING_EFFECTIVEWPM
 
         def _accept_effectivewpm(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._accept_effectivewpm')
             if self._you_exist(update, context):
-                value = update.message.text
-                try:
-                    value = int(value)
-                except ValueError:
-                    # not a number, may be none?
-                    if value.lower() == 'none':
-                        context.user_data["effectivewpm"] = None
-                        update.message.reply_text(
-                            "Ok - spaces will be sent at normal speed",
-                            reply_markup=self._keyboard
-                        )
-                        return MAIN
-                    else:
-                        update.message.reply_text(
-                            "Hey ... this is not a number!!"
-                        )
-                    return None
+                return self._set_effectivewpm(update, context, update.message.text)
+
+        def _set_effectivewpm(self, update: Update, context: CallbackContext, value) -> None:
+            try:
+                value = int(value)
+            except ValueError:
+                # not a number, may be none?
+                if value.lower() == 'none':
+                    context.user_data["effectivewpm"] = None
+                    update.message.reply_text(
+                        "Ok - spaces will be sent at normal speed",
+                        reply_markup=self._keyboard
+                    )
+                    return MAIN
                 else:
-                    if 1 <= value <= 100:
-                        context.user_data["effectivewpm"] = value 	    
-                        update.message.reply_text(
-                            "Ok - effective speed is now %iwpm" % value,
-                            reply_markup=self._keyboard
-                        )
-                        return MAIN
-                    else:
-                        update.message.reply_text(
-                            "Sorry - Valid effective wpm is between 1 and 100\nTry again"
-                        )
+                    update.message.reply_text(
+                        "Hey ... this is not a number!!"
+                    )
+                return None
+            else:
+                if 1 <= value <= 100:
+                    context.user_data["effectivewpm"] = value
+                    update.message.reply_text(
+                        "Ok - effective speed is now %iwpm" % value,
+                        reply_markup=self._keyboard
+                    )
+                    return MAIN
+                else:
+                    update.message.reply_text(
+                        "Sorry - Valid effective wpm is between 1 and 100\nTry again"
+                    )
                         
         def _cmd_tone(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._cmd_tone')
             if self._you_exist(update, context):
+                if len(context.args) > 0:
+                    return self._set_tone(update, context, context.args[0])
+
                 update.message.reply_text(
                     "Current value is %iHz\nWhat is your desired tone frequency?" % context.user_data["tone"],
                     reply_markup=self._keyboard_leave
@@ -417,113 +445,129 @@ class bot():
         def _accept_tone(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._accept_tone')
             if self._you_exist(update, context):
-                try:
-            	    value = int(update.message.text)
-                except ValueError:
+                return self._set_tone(update, context, update.message.text)
+
+        def _set_tone(self, update: Update, context: CallbackContext, value) -> None:
+            try:
+                value = int(value)
+            except ValueError:
+                update.message.reply_text(
+                    "Hey ... this is not a number!!"
+                )
+                return None
+            else:
+                if 200 <= value <= 1200:
+                    context.user_data["tone"] = value
                     update.message.reply_text(
-                        "Hey ... this is not a number!!"
+                        "Ok - tone frequency is now %iHz" % value,
+                        reply_markup=self._keyboard
                     )
-                    return None
+                    return MAIN
                 else:
-                    if 200 <= value <= 1200:
-                        context.user_data["tone"] = value 	    
-                        update.message.reply_text(
-                            "Ok - tone frequency is now %iHz" % value,
-                            reply_markup=self._keyboard
-                        )
-                        return MAIN
-                    else:
-                        update.message.reply_text(
-                            "Sorry - Valid frequency is between 200 and 1200\nTry again"
-                        )
+                    update.message.reply_text(
+                        "Sorry - Valid frequency is between 200 and 1200\nTry again"
+                    )
                         
         def _cmd_snr(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._cmd_snr')
             if self._you_exist(update, context):
+                if len(context.args) > 0:
+                    return self._set_snr(update, context, context.args[0])
+
                 value = "none" if context.user_data["snr"] is None else "%idb" % context.user_data["snr"]
                 update.message.reply_text(
                     "I have only a partial support for noise: after mixing signal with white noise audio will be filtered with a 500Hz filter centered at 800Hz,\nCurrent value is %s\nWhat is your desired snr (type none for no added noise at all)?" % value,
-                    reply_markup=self._keyboard_leave
+                    reply_markup=self._keyboard_none
                 )
                 return TYPING_SNR
 
         def _accept_snr(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._accept_snr')
             if self._you_exist(update, context):
-                value = update.message.text
-                try:
-                    value = int(value)
-                except ValueError:
-                    if value.lower() == 'none':
-                        context.user_data["snr"] = None
-                        update.message.reply_text(
-                            "Ok - no noise will be added",
-                            reply_markup=self._keyboard
-                        )
-                        return MAIN
-                    else:
-                        update.message.reply_text(
-                            "Hey ... this is not a number!!"
-                        )
-                    return None
+                return self._set_snr(update, context, update.message.text)
+
+        def _set_snr(self, update: Update, context: CallbackContext, value) -> None:
+            try:
+                value = int(value)
+            except ValueError:
+                if value.lower() == 'none':
+                    context.user_data["snr"] = None
+                    update.message.reply_text(
+                        "Ok - no noise will be added",
+                        reply_markup=self._keyboard
+                    )
+                    return MAIN
                 else:
-                    if -10 <= value <= 10:
-                        context.user_data["snr"] = value 	    
-                        update.message.reply_text(
-                            "Ok - snr is now %idb" % value,
-                            reply_markup=self._keyboard
-                        )
-                        return MAIN
-                    else:
-                        update.message.reply_text(
-                            "Sorry - Valid snr is between -10 and 10\nTry again"
-                        )
+                    update.message.reply_text(
+                        "Hey ... this is not a number!!"
+                    )
+                return None
+            else:
+                if -10 <= value <= 10:
+                    context.user_data["snr"] = value
+                    update.message.reply_text(
+                        "Ok - snr is now %idb" % value,
+                        reply_markup=self._keyboard
+                    )
+                    return MAIN
+                else:
+                    update.message.reply_text(
+                        "Sorry - Valid snr is between -10 and 10\nTry again"
+                    )
                         
         def _cmd_qrq(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._cmd_qrq')
             if self._you_exist(update, context):
+                if len(context.args) > 0:
+                    return self._set_qrq(update, context, context.args[0])
+
                 value = "none" if context.user_data["qrq"] is None else "%i minutes" % context.user_data["qrq"]
                 update.message.reply_text(
                     "Current value is %s\nHow often (in minutes) should I increase speed (type none for no qrq)?" % value,
-                    reply_markup=self._keyboard_leave
+                    reply_markup=self._keyboard_none
                 )
                 return TYPING_QRQ
 
         def _accept_qrq(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._accept_qrq')
             if self._you_exist(update, context):
-                value = update.message.text
-                try:
-                    value = int(value)
-                except ValueError:
-                    if value.lower() == 'none':
-                        context.user_data["qrq"] = None
-                        update.message.reply_text(
-                            "Ok - no qrq",
-                            reply_markup=self._keyboard
-                        )
-                        return MAIN
-                    else:
-                        update.message.reply_text(
-                            "Hey ... this is not a number!!"
-                        )
-                    return None
+                return self._set_qrq(update, context, update.message.text)
+
+        def _set_qrq(self, update: Update, context: CallbackContext, value) -> None:
+            try:
+                value = int(value)
+            except ValueError:
+                if value.lower() == 'none':
+                    context.user_data["qrq"] = None
+                    update.message.reply_text(
+                        "Ok - no qrq",
+                        reply_markup=self._keyboard
+                    )
+                    return MAIN
                 else:
-                    if 1 <= value <= 60:
-                        context.user_data["qrq"] = value 	    
-                        update.message.reply_text(
-                            "Ok - qrq is now %i minutes" % value,
-                            reply_markup=self._keyboard
-                        )
-                        return MAIN
-                    else:
-                        update.message.reply_text(
-                            "Sorry - Valid qrq is between 1 and 60 minutes\nTry again"
-                        )
+                    update.message.reply_text(
+                        "Hey ... this is not a number!!"
+                    )
+                return None
+            else:
+                if 1 <= value <= 60:
+                    context.user_data["qrq"] = value
+                    update.message.reply_text(
+                        "Ok - qrq is now %i minutes" % value,
+                        reply_markup=self._keyboard
+                    )
+                    return MAIN
+                else:
+                    update.message.reply_text(
+                        "Sorry - Valid qrq is between 1 and 60 minutes\nTry again"
+                    )
                         
         def _cmd_title(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._cmd_title')
             if self._you_exist(update, context):
+                if len(context.args) > 0:
+                    return self._set_title(update, context, " ".join(context.args))
+
                 update.message.reply_text(
                     "Current title is %s\nWhat is your desired title?" % context.user_data["title"],
                     reply_markup=self._keyboard_leave
@@ -533,28 +577,33 @@ class bot():
         def _accept_title(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._accept_title')
             if self._you_exist(update, context):
-                value = update.message.text
-                if re.search(r'[^A-Za-z0-9_\- ]', value):
+                return self._set_title(update, context, update.message.text)
+
+        def _set_title(self, update: Update, context: CallbackContext, value) -> None:
+            if re.search(r'[^A-Za-z0-9_\- ]', value):
+                update.message.reply_text(
+                    "Hey ... this is not a valid title!!\nPlease use only letters, numbers, blank, underscore, hyphen (A-Za-z0-9 _-)"
+                )
+                return None
+            else:
+                if 0 < len(value) <= 50:
+                    context.user_data["title"] = value
                     update.message.reply_text(
-                        "Hey ... this is not a valid title!!\nPlease use only letters, numbers, blank, underscore, hyphen (A-Za-z0-9 _-)"
+                        "Ok - title is now %s" % value,
+                        reply_markup=self._keyboard
                     )
-                    return None
+                    return MAIN
                 else:
-                    if 0 < len(value) <= 50:
-                        context.user_data["title"] = value 	    
-                        update.message.reply_text(
-                            "Ok - title is now %s" % value,
-                            reply_markup=self._keyboard
-                        )
-                        return MAIN
-                    else:
-                        update.message.reply_text(
-                            "Sorry - I can accept titles of 50 chars at most\nTry again"
-                        )
-                        
+                    update.message.reply_text(
+                        "Sorry - I can accept titles of 50 chars at most\nTry again"
+                    )
+
         def _cmd_format(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._cmd_format')
             if self._you_exist(update, context):
+                if len(context.args) > 0:
+                    return self._set_format(update, context, context.args[0])
+
                 update.message.reply_text(
                     "\n".join([
                         "Current format is %s" % context.user_data["format"],
@@ -568,23 +617,29 @@ class bot():
         def _accept_format(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._accept_format')
             if self._you_exist(update, context):
-                value = update.message.text.lower()
-                if value not in ANSWER_FORMATS:
-                    update.message.reply_text(
-                        "Hey ... this is not a format I know!!\nPlease choose between "+ ', '.join(ANSWER_FORMATS)
-                    )
-                    return None
-                else:
-                    context.user_data["format"] = value
-                    update.message.reply_text(
-                        "Ok - format is now %s" % value,
-                        reply_markup=self._keyboard
-                    )
-                    return MAIN
+                return self._set_format(update, context, update.message.text)
+
+        def _set_format(self, update: Update, context: CallbackContext, value) -> None:
+            value = value.lower()
+            if value not in ANSWER_FORMATS:
+                update.message.reply_text(
+                    "Hey ... this is not a format I know!!\nPlease choose between "+ ', '.join(ANSWER_FORMATS)
+                )
+                return None
+            else:
+                context.user_data["format"] = value
+                update.message.reply_text(
+                    "Ok - format is now %s" % value,
+                    reply_markup=self._keyboard
+                )
+                return MAIN
 
         def _cmd_delmessage(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._cmd_delmessage')
             if self._you_exist(update, context):
+                if len(context.args) > 0:
+                    return self._set_delmessage(update, context, context.args[0])
+
                 update.message.reply_text(
                     "\n".join([
                         "Previously you asked me to delete your messages" if context.user_data["delmessage"] else "Actually I dont delete your messages",
@@ -597,24 +652,30 @@ class bot():
         def _accept_delmessage(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._accept_delmessage')
             if self._you_exist(update, context):
-                value = update.message.text.lower()
-                if value not in ["yes", "no"]:
-                    update.message.reply_text(
-                        "Please be serious, answer Yes or No"
-                    )
-                    return None
-                else:
-                    value = value == "yes"
-                    context.user_data["delmessage"] = value
-                    update.message.reply_text(
-                        "Ok - I'll delete messages from now on" if value else "OK - I'll leave your messages untouched",
-                        reply_markup=self._keyboard
-                    )
-                    return MAIN
+                return self._set_delmessage(update, context, update.message.text)
+
+        def _set_delmessage(self, update: Update, context: CallbackContext, value) -> None:
+            value = value.lower()
+            if value not in ["yes", "no"]:
+                update.message.reply_text(
+                    "Please be serious, answer Yes or No"
+                )
+                return None
+            else:
+                value = value == "yes"
+                context.user_data["delmessage"] = value
+                update.message.reply_text(
+                    "Ok - I'll delete messages from now on" if value else "OK - I'll leave your messages untouched",
+                    reply_markup=self._keyboard
+                )
+                return MAIN
 
         def _cmd_feed(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._cmd_feed')
             if self._you_exist(update, context):
+                if len(context.args) > 0:
+                    return self._set_feed(update, context, " ".join(context.args))
+
                 update.message.reply_text(
                     "Current feed URL is\n%s\nPlease give the full URL of your RSS feed?\nType default if you want to reset to default feed" % context.user_data["feed"],
                     reply_markup=self._keyboard_default
@@ -624,25 +685,30 @@ class bot():
         def _accept_feed(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._accept_feed')
             if self._you_exist(update, context):
-                value = update.message.text
-                if value.lower() == 'default':
-                    value = DEFAULTS['feed']
-                if urlparse(value)[0] not in ('http', 'https', 'ftp', 'feed'):
-                    update.message.reply_text(
-                        "Hey ... this is not a valid URL!!"
-                    )
-                    return None
-                else:
-                    context.user_data["feed"] = value 	    
-                    update.message.reply_text(
-                        "Ok - I'll read news from\n%s\nHope you'll like it" % value,
-                        reply_markup=self._keyboard
-                    )
-                return MAIN
+                return self._set_feed(update, context, update.message.text)
+
+        def _set_feed(self, update: Update, context: CallbackContext, value) -> None:
+            if value.lower() == 'default':
+                value = DEFAULTS['feed']
+            if urlparse(value)[0] not in ('http', 'https', 'ftp', 'feed'):
+                update.message.reply_text(
+                    "Hey ... this is not a valid URL!!"
+                )
+                return None
+            else:
+                context.user_data["feed"] = value
+                update.message.reply_text(
+                    "Ok - I'll read news from\n%s\nHope you'll like it" % value,
+                    reply_markup=self._keyboard
+                )
+            return MAIN
 
         def _cmd_news_to_read(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._cmd_news_to_read')
             if self._you_exist(update, context):
+                if len(context.args) > 0:
+                    return self._set_news_to_read(update, context, context.args[0])
+
                 update.message.reply_text(
                     "How many news do you want from the feed? (current value is %s)\nRemember that my reading speed is about 1 news/s so if you ask me 60 news I'll take about 1 minute to answer, if you are in a hurry please ask someone else :-P" % str(context.user_data["news to read"]),
                     reply_markup=self._keyboard_leave
@@ -652,30 +718,36 @@ class bot():
         def _accept_news_to_read(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._accept_news_to_read')
             if self._you_exist(update, context):
-                last_n = update.message.text.lower()
-                try:
-                    last_n = int(last_n)
-                    if last_n < 1:
-                        update.message.reply_text(
-                            "Please answer with a number greater then 0"
-                        )
-                        return None
-                except ValueError:
-                    if last_n != 'all':
-                        update.message.reply_text(
-                            "Please give a number or all ... I wont accept anything else"
-                        )
-                        return None
-                update.message.reply_text(
-                    "Ok - I'll send you %s news" % str(last_n),
-                    reply_markup=self._keyboard
-                )
-                context.user_data["news to read"] = last_n
-                return MAIN
+                return self._set_news_to_read(update, context, update.message.text)
+
+        def _set_news_to_read(self, update: Update, context: CallbackContext, value) -> None:
+            value = value.lower()
+            try:
+                value = int(value)
+                if value < 1:
+                    update.message.reply_text(
+                        "Please answer with a number greater then 0"
+                    )
+                    return None
+            except ValueError:
+                if value != 'all':
+                    update.message.reply_text(
+                        "Please give a number or all ... I wont accept anything else"
+                    )
+                    return None
+            update.message.reply_text(
+                "Ok - I'll send you %s news" % str(value),
+                reply_markup=self._keyboard
+            )
+            context.user_data["news to read"] = value
+            return MAIN
                 
         def _cmd_show_news(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._cmd_show_news')
             if self._you_exist(update, context):
+                if len(context.args) > 0:
+                    return self._set_show_news(update, context, context.args[0])
+
                 update.message.reply_text(
                     "\n".join([
                         "Previously you asked me to show the news in clear text" if context.user_data["show news"] else "Actually I dont show the news text to you",
@@ -688,20 +760,23 @@ class bot():
         def _accept_show_news(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._accept_show_news')
             if self._you_exist(update, context):
-                value = update.message.text.lower()
-                if value not in ["yes", "no"]:
-                    update.message.reply_text(
-                        "Please be serious, answer Yes or No"
-                    )
-                    return None
-                else:
-                    value = value == "yes"
-                    context.user_data["show news"] = value
-                    update.message.reply_text(
-                        "Ok - I'll show the news text to you from now on" if value else "OK - I'll keep the news text secret :-P",
-                        reply_markup=self._keyboard
-                    )
-                    return MAIN
+                return self._set_show_news(update, context, update.message.text)
+
+        def _set_show_news(self, update: Update, context: CallbackContext, value) -> None:
+            value = value.lower()
+            if value not in ["yes", "no"]:
+                update.message.reply_text(
+                    "Please be serious, answer Yes or No"
+                )
+                return None
+            else:
+                value = value == "yes"
+                context.user_data["show news"] = value
+                update.message.reply_text(
+                    "Ok - I'll show the news text to you from now on" if value else "OK - I'll keep the news text secret :-P",
+                    reply_markup=self._keyboard
+                )
+                return MAIN
 
         def _cmd_read_news(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._cmd_read_news')
