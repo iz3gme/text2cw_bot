@@ -42,6 +42,7 @@ logger = logging.getLogger(__name__)
 
 from telegram.ext import Updater, CommandHandler, ConversationHandler, CallbackContext, MessageHandler, Filters, PicklePersistence
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove, KeyboardButton
+from telegram.ext.dispatcher import run_async
 
 import subprocess
 from os import remove, rename
@@ -270,7 +271,14 @@ class bot():
                 update.message.reply_text("Please use /start to begin")
             return False
 
-        def _reply_with_audio(self, update: Update, context: CallbackContext, text, reply_markup=None) -> None:
+        # due to persistence command methods cannot be asyncronous (or at least I don't know how to make it in a safe way)
+        # time consuming steps have been isolated and we call them from sync methods
+        @run_async
+        def _reply_with_audio(self, update: Update, context: CallbackContext, text, reply_markup=None):
+            ''' this is just an async wrapper to the sync function '''
+            self._sync_reply_with_audio( update, context, text, reply_markup)
+
+        def _sync_reply_with_audio(self, update: Update, context: CallbackContext, text, reply_markup=None):
             wpm = context.user_data['wpm']
             effectivewpm = context.user_data['effectivewpm']
             tone = context.user_data['tone']
@@ -300,6 +308,22 @@ class bot():
             else: #default to voice format
                 update.message.reply_voice(voice=open(tempfilename, "rb"), caption=title, reply_markup=reply_markup)
             remove(tempfilename)
+
+        @run_async
+        def _do_read_news(self, update: Update, context: CallbackContext, feed, last_n, show_news):
+            last_n = last_n if last_n != 'all' else 0
+            try:
+                text = get_feed(feed, last_n)
+            except:
+                text = None
+            if text:
+                if show_news:
+                    # send clear text adding a newline after each prosign
+                    update.message.reply_text(re.sub('(<..>)', r'\1\n', text))
+                # here we MUST call the sync version to avoid possible thread deadlocks
+                self._sync_reply_with_audio(update, context, text, reply_markup=self._keyboard)
+            else:
+                update.message.reply_text("Sorry but something went wrong and I coudn't read the feed\nAre you sure you gave me a valid RSS feed URL?\nPlease start back with the command if you want to try again", reply_markup=self._keyboard)
 
         def _cmd_start(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._cmd_start')
@@ -784,19 +808,8 @@ class bot():
                 feed = context.user_data["feed"]
                 last_n = context.user_data["news to read"]
                 show_news = context.user_data["show news"]
-                
-                last_n = last_n if last_n != 'all' else 0
-                try:
-                	text = get_feed(feed, last_n)
-                except:
-                	text = None
-                if text:
-                    if show_news:
-                        # send clear text adding a newline after each prosign
-                        update.message.reply_text(re.sub('(<..>)', r'\1\n', text))
-                    self._reply_with_audio(update, context, text, reply_markup=self._keyboard)
-                else:
-                    update.message.reply_text("Sorry but something goes wrong and I coudn't read the feed\nAre you sure you gave me a valid RSS feed URL?\nPlease start back with the command if you want to try again", reply_markup=self._keyboard)
+                # do the real job in differt thread
+                self._do_read_news(update, context, feed, last_n, show_news)
                 return MAIN
 
         def _cmd_leave(self, update: Update, context: CallbackContext) -> None:
