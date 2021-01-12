@@ -761,7 +761,6 @@ class bot():
                 entry_points=[CommandHandler('start', self._cmd_start)],
                 states={
                     MAIN: main_commands + [
-                        CommandHandler('stop', self._cmd_stop),
                         MessageHandler(Filters.text & ~Filters.command, self._handle_text),
                     ],
                     TYPING_WPM: [
@@ -831,7 +830,10 @@ class bot():
                         CommandHandler('leave', self._cmd_leave),
                     ],
                 },
-                fallbacks=[MessageHandler(Filters.all, self._handle_unknown)],
+                fallbacks=[
+                    CommandHandler('stop', self._cmd_stop),
+                    MessageHandler(Filters.all, self._handle_unknown),
+                ],
                 name="my_conversation",
                 persistent=True,
             )
