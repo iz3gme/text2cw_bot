@@ -107,21 +107,21 @@ class bot():
         @property
         def _commands(self):
             return [
-                ['feed', 'Change feed source', self._cmd_feed],
-                ['news_to_read', 'Set number of news to read from feed', self._cmd_news_to_read],
-                ['show_news', 'Tell me if you want to have the news in clear text also', self._cmd_show_news],
-                ['read_news', 'I\'ll read the feed for you and send news in cw', self._cmd_read_news],
-                [None, 'filler', None],
-                ['wpm', 'Set speed in words per minute', self._cmd_wpm],
-                ['effectivewpm', 'Set effective speed in words per minute, If set, the spaces are sent at this speed ("Farnsworth")', self._cmd_effectivewpm],
-                ['tone', 'Set tone frequency in Hertz', self._cmd_tone],
-                ['snr', 'When set a noise background is added, valid values are -10 to 10 (in db), set to NONE to disable', self._cmd_snr],
-                ['title', 'Set answer file name', self._cmd_title],
-                ['format', 'Choose between voice and audio answer format', self._cmd_format],
-                ['delmessage', 'Tell me if you want your messages to be deleted once converted', self._cmd_delmessage],
-                ['qrq', 'Increase speed by 1 wpm in intervals of minutes', self._cmd_qrq],
-                ['settings', 'show current settings', self._cmd_settings],
-                ['help', 'get help message', self._cmd_help],
+                ['feed', 'Change feed source', self._cmd_feed, TYPING_FEED, self._accept_feed],
+                ['news_to_read', 'Set number of news to read from feed', self._cmd_news_to_read, TYPING_NEWS_TO_READ, self._accept_news_to_read],
+                ['show_news', 'Tell me if you want to have the news in clear text also', self._cmd_show_news, TYPING_SHOW_NEWS, self._accept_show_news],
+                ['read_news', 'I\'ll read the feed for you and send news in cw', self._cmd_read_news, None, None],
+                [None, 'filler', None, None, None],
+                ['wpm', 'Set speed in words per minute', self._cmd_wpm, TYPING_WPM, self._accept_wpm],
+                ['effectivewpm', 'Set effective speed in words per minute, If set, the spaces are sent at this speed ("Farnsworth")', self._cmd_effectivewpm, TYPING_EFFECTIVEWPM, self._accept_effectivewpm],
+                ['tone', 'Set tone frequency in Hertz', self._cmd_tone, TYPING_TONE, self._accept_tone],
+                ['snr', 'When set a noise background is added, valid values are -10 to 10 (in db), set to NONE to disable', self._cmd_snr, TYPING_SNR, self._accept_snr],
+                ['title', 'Set answer file name', self._cmd_title, TYPING_TITLE, self._accept_title],
+                ['format', 'Choose between voice and audio answer format', self._cmd_format, TYPING_FORMAT, self._accept_format],
+                ['delmessage', 'Tell me if you want your messages to be deleted once converted', self._cmd_delmessage, TYPING_DELMESSAGE, self._accept_delmessage],
+                ['qrq', 'Increase speed by 1 wpm in intervals of minutes', self._cmd_qrq, TYPING_QRQ, self._accept_qrq],
+                ['settings', 'show current settings', self._cmd_settings, None, None],
+                ['help', 'get help message', self._cmd_help, None, None],
             ]
 
         @property
@@ -136,7 +136,7 @@ class bot():
                 "",
                 "I can understand this commands:", 
             ]
-            for command, description, method in self._commands:
+            for command, description, method, typing_state, accept_method in self._commands:
                 if command:
                     message += ['/'+command, '    '+description]
             message += [
@@ -751,83 +751,31 @@ class bot():
             self._updater = Updater(token, persistence=pp, use_context=True)
 
             # tell BotFather my list of commands
-            commands = [ [command, description] for command, description, method in self._commands if command]
+            commands = [ [command, description] for command, description, method, typing_state, accept_method in self._commands if command]
             self._updater.bot.setMyCommands(commands)
 
-            # Add conversation handler for each state
-            main_commands = [CommandHandler(command, method) for command, description, method in self._commands if command]
+            # build conversation handler for each state
+            main_commands = [CommandHandler(command, method) for command, description, method, typing_state, accept_method in self._commands if command]
 
+            # build all accept answer state
+            typing_states = {
+                typing_state: [
+                        MessageHandler(
+                            Filters.text & ~Filters.command, accept_method
+                        ),
+                        CommandHandler('leave', self._cmd_leave),
+                    ]
+                for command, description, method, typing_state, accept_method in self._commands 
+                if typing_state
+            }
+
+            # build conversation
             conv_handler = ConversationHandler(
                 entry_points=[CommandHandler('start', self._cmd_start)],
                 states={
+                    **typing_states,
                     MAIN: main_commands + [
                         MessageHandler(Filters.text & ~Filters.command, self._handle_text),
-                    ],
-                    TYPING_WPM: [
-                        MessageHandler(
-                            Filters.text & ~Filters.command, self._accept_wpm
-                        ),
-                        CommandHandler('leave', self._cmd_leave),
-                    ],
-                    TYPING_EFFECTIVEWPM: [
-                        MessageHandler(
-                            Filters.text & ~Filters.command, self._accept_effectivewpm
-                        ),
-                        CommandHandler('leave', self._cmd_leave),
-                    ],
-                    TYPING_QRQ: [
-                        MessageHandler(
-                            Filters.text & ~Filters.command, self._accept_qrq
-                        ),
-                        CommandHandler('leave', self._cmd_leave),
-                    ],
-                    TYPING_TONE: [
-                        MessageHandler(
-                            Filters.text & ~Filters.command, self._accept_tone
-                        ),
-                        CommandHandler('leave', self._cmd_leave),
-                    ],
-                    TYPING_SNR: [
-                        MessageHandler(
-                            Filters.text & ~Filters.command, self._accept_snr
-                        ),
-                        CommandHandler('leave', self._cmd_leave),
-                    ],
-                    TYPING_TITLE: [
-                        MessageHandler(
-                            Filters.text & ~Filters.command, self._accept_title
-                        ),
-                        CommandHandler('leave', self._cmd_leave),
-                    ],
-                    TYPING_FORMAT: [
-                        MessageHandler(
-                            Filters.text & ~Filters.command, self._accept_format
-                        ),
-                        CommandHandler('leave', self._cmd_leave),
-                    ],
-                    TYPING_DELMESSAGE: [
-                        MessageHandler(
-                            Filters.text & ~Filters.command, self._accept_delmessage
-                        ),
-                        CommandHandler('leave', self._cmd_leave),
-                    ],
-                    TYPING_FEED: [
-                        MessageHandler(
-                            Filters.text & ~Filters.command, self._accept_feed
-                        ),
-                        CommandHandler('leave', self._cmd_leave),
-                    ],
-                    TYPING_SHOW_NEWS: [
-                        MessageHandler(
-                            Filters.text & ~Filters.command, self._accept_show_news
-                        ),
-                        CommandHandler('leave', self._cmd_leave),
-                    ],
-                    TYPING_NEWS_TO_READ: [
-                        MessageHandler(
-                            Filters.text & ~Filters.command, self._accept_news_to_read
-                        ),
-                        CommandHandler('leave', self._cmd_leave),
                     ],
                 },
                 fallbacks=[
