@@ -1,13 +1,16 @@
 # text2cw_bot
 Telegram bot which convert text messages to cw
 
-This bot was born from ideas in https://t.me/cw_qrs chat to have another instrument
+This bot was born from ideas in @cw_qrs chat - https://t.me/cw_qrs - to have another instrument
 to exercise cw, based on ebook2cw it answers any message you send it with the convertion
 to cw audio of the message itself.
 
-It was developped and tested on a rasperrypi but should run smoothly on any linux
-platform, please note that the code have been written in the perfect style of "it
-just works" 0=)
+There's no real magic here as this is mostly a wrapper around excellent program ebook2cw
+https://fkurz.net/ham/ebook2cw.html by Fabian Kurz DJ1YFK.
+
+It was developped, tested and now lives - as @text2cw_bot https://t.me/text2cw_bot - on a
+rasperrypi but should run smoothly on any linux platform, please note that the code have been
+written in the perfect style of "it just works" 0=)
 
 If you want to run your own copy of the bot you have to
 - install telegram bot library for python3 (https://python-telegram-bot.org/)

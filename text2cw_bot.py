@@ -134,6 +134,7 @@ class bot():
                 "You can change speed, tone and file name using commands",
                 "(adding noise is not fully implemented yet)",
                 "",
+                "I'm mostly a wrapper around excellent program ebook2cw https://fkurz.net/ham/ebook2cw.html by Fabian Kurz DJ1YFK",
                 "Should you find any bug please write to my creator @iz3gme",
                 "",
                 "I can understand this commands:", 
