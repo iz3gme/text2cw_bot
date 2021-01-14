@@ -80,7 +80,7 @@ def get_feed(feed_url, last_n=1):
     return cw_message
 
 
-MAIN, TYPING_WPM, TYPING_SNR, TYPING_TONE, TYPING_TITLE, TYPING_FORMAT, TYPING_DELMESSAGE, EFFECTIVEWPM, TYPING_EFFECTIVEWPM, TYPING_FEED, TYPING_NEWS_TO_READ, TYPING_SHOW_NEWS, TYPING_QRQ = range(13)
+MAIN, TYPING_WPM, TYPING_SNR, TYPING_TONE, TYPING_TITLE, TYPING_FORMAT, TYPING_DELMESSAGE, EFFECTIVEWPM, TYPING_EFFECTIVEWPM, TYPING_FEED, TYPING_NEWS_TO_READ, TYPING_SHOW_NEWS, TYPING_QRQ, TYPING_EXTRA_SPACE = range(14)
 
 ANSWER_FORMATS = ['voice', 'audio']
 
@@ -95,7 +95,8 @@ DEFAULTS = {
     'feed': "https://www.ansa.it/sito/ansait_rss.xml",
     'news to read': 5,
     'show news': False,
-    'qrq': None
+    'qrq': None,
+    'extra space': None,
 }
 
 class bot():
@@ -108,21 +109,21 @@ class bot():
         @property
         def _commands(self):
             return [
+                ['help', 'ask for help message', self._cmd_help, None, None],
                 ['feed', 'Change feed source', self._cmd_feed, TYPING_FEED, self._accept_feed],
                 ['news_to_read', 'Set number of news to read from feed', self._cmd_news_to_read, TYPING_NEWS_TO_READ, self._accept_news_to_read],
                 ['show_news', 'Tell me if you want to have the news in clear text also', self._cmd_show_news, TYPING_SHOW_NEWS, self._accept_show_news],
                 ['read_news', 'I\'ll read the feed for you and send news in cw', self._cmd_read_news, None, None],
-                [None, 'filler', None, None, None],
                 ['wpm', 'Set speed in words per minute', self._cmd_wpm, TYPING_WPM, self._accept_wpm],
-                ['effectivewpm', 'Set effective speed in words per minute, If set, the spaces are sent at this speed ("Farnsworth")', self._cmd_effectivewpm, TYPING_EFFECTIVEWPM, self._accept_effectivewpm],
                 ['tone', 'Set tone frequency in Hertz', self._cmd_tone, TYPING_TONE, self._accept_tone],
                 ['snr', 'When set a noise background is added, valid values are -10 to 10 (in db), set to NONE to disable', self._cmd_snr, TYPING_SNR, self._accept_snr],
+                ['effectivewpm', 'Set effective speed in words per minute, If set, the spaces are sent at this speed ("Farnsworth")', self._cmd_effectivewpm, TYPING_EFFECTIVEWPM, self._accept_effectivewpm],
+                ['extra_space', 'Extra Word spacing. Similar to effective speed, but only affects the inter-word spacing, not the inter-character spacing', self._cmd_extra_space, TYPING_EXTRA_SPACE, self._accept_extra_space],
                 ['title', 'Set answer file name', self._cmd_title, TYPING_TITLE, self._accept_title],
                 ['format', 'Choose between voice and audio answer format', self._cmd_format, TYPING_FORMAT, self._accept_format],
                 ['delmessage', 'Tell me if you want your messages to be deleted once converted', self._cmd_delmessage, TYPING_DELMESSAGE, self._accept_delmessage],
                 ['qrq', 'Increase speed by 1 wpm in intervals of minutes', self._cmd_qrq, TYPING_QRQ, self._accept_qrq],
                 ['settings', 'show current settings', self._cmd_settings, None, None],
-                ['help', 'get help message', self._cmd_help, None, None],
             ]
 
         @property
@@ -281,6 +282,7 @@ class bot():
         def _sync_reply_with_audio(self, update: Update, context: CallbackContext, text, reply_markup=None):
             wpm = context.user_data['wpm']
             effectivewpm = context.user_data['effectivewpm']
+            extraspace = context.user_data['extra space']
             tone = context.user_data['tone']
             snr = context.user_data['snr']
             title = context.user_data['title']
@@ -291,6 +293,7 @@ class bot():
             command = ["/usr/bin/ebook2cw", "-c", "DONOTSEPARATECHAPTERS", "-o", tempfilename, "-u"]
             command.extend(["-w", str(wpm)])
             if effectivewpm is not None: command.extend(["-e", str(effectivewpm)])
+            if extraspace is not None: command.extend(["-W", str(extraspace)])
             if qrq is not None: command.extend(["-Q", str(qrq)])
             command.extend(["-f", str(tone)])
             if snr is not None: command.extend(["-N", str(snr)])
@@ -454,6 +457,55 @@ class bot():
                         "Sorry - Valid effective wpm is between 1 and 100\nTry again"
                     )
                         
+        def _cmd_extra_space(self, update: Update, context: CallbackContext) -> None:
+            logging.debug('bot._cmd_extra_space')
+            if self._you_exist(update, context):
+                if len(context.args) > 0:
+                    return self._set_extra_space(update, context, context.args[0])
+
+                value = "none" if context.user_data["extra space"] is None else str(context.user_data["extra space"])
+                update.message.reply_text(
+                    "I can send longer spaces between words\nCurrent value is %s\nWhat is your desired extra word spacing (eg. a value of 0.5 adds half an extra word space, type none to have spaces sent at normal speed)?" % value,
+                    reply_markup=self._keyboard_none
+                )
+                return TYPING_EXTRA_SPACE
+
+        def _accept_extra_space(self, update: Update, context: CallbackContext) -> None:
+            logging.debug('bot._accept_extra_space')
+            if self._you_exist(update, context):
+                return self._set_extra_space(update, context, update.message.text)
+
+        def _set_extra_space(self, update: Update, context: CallbackContext, value) -> None:
+            try:
+                value = value.replace(',', '.') # we accept both , and . as decimal separator
+                value = float(value)
+            except ValueError:
+                # not a number, may be none?
+                if value.lower() == 'none':
+                    context.user_data["extra space"] = None
+                    update.message.reply_text(
+                        "Ok - spaces between words will be sent at normal speed",
+                        reply_markup=self._keyboard
+                    )
+                    return MAIN
+                else:
+                    update.message.reply_text(
+                        "Hey ... this is not a number!!"
+                    )
+                return None
+            else:
+                if 0 < value <= 10:
+                    context.user_data["extra space"] = value
+                    update.message.reply_text(
+                        "Ok - extra space is now %s" % str(value),
+                        reply_markup=self._keyboard
+                    )
+                    return MAIN
+                else:
+                    update.message.reply_text(
+                        "Sorry - Valid extra space is between 0 and 10\nTry again"
+                    )
+
         def _cmd_tone(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._cmd_tone')
             if self._you_exist(update, context):
