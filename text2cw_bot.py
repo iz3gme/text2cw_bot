@@ -343,6 +343,7 @@ class bot():
 
             update.message.reply_text(
                 'Hi ' + update.message.from_user.first_name + '\n' + self._helptext,
+                disable_web_page_preview=True,
                 reply_markup=self._keyboard
             )
             return MAIN
@@ -360,7 +361,12 @@ class bot():
         def _cmd_help(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._cmd_help')
             if self._you_exist(update, context):
-                update.message.reply_text(self._helptext)
+                update.message.reply_text(
+                    self._helptext,
+                    disable_web_page_preview=True,
+                    reply_markup=self._keyboard
+                )
+            
                 return MAIN
 
         def _cmd_settings(self, update: Update, context: CallbackContext) -> None:
