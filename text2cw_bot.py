@@ -41,7 +41,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 from telegram.ext import Updater, CommandHandler, ConversationHandler, CallbackContext, MessageHandler, Filters, PicklePersistence
-from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove, KeyboardButton
+from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove, KeyboardButton, ChatAction
 from telegram.ext.dispatcher import run_async
 
 import subprocess
@@ -302,8 +302,11 @@ class bot():
             command.extend(["-t", title])
             command.extend(["-a", update.message.from_user.first_name])
             
+            context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.RECORD_AUDIO)
             subprocess.run(command, input=bytes(text+"\n", encoding='utf8'))
             tempfilename += "0000.mp3" # ebook2cw always add chapternumber and extension
+
+            context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.UPLOAD_AUDIO)
             if format == "audio":
                  newtempfilename = "/tmp/" + update.message.from_user.first_name + "_" + "_" + title + ".mp3"
                  rename(tempfilename, newtempfilename)
@@ -315,6 +318,7 @@ class bot():
 
         @run_async
         def _do_read_news(self, update: Update, context: CallbackContext, feed, last_n, show_news):
+            context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
             last_n = last_n if last_n != 'all' else 0
             try:
                 text = get_feed(feed, last_n)
@@ -322,6 +326,7 @@ class bot():
                 text = None
             if text:
                 if show_news:
+                    context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
                     # send clear text adding a newline after each prosign
                     update.message.reply_text(re.sub('(<..>)', r'\1\n', text))
                 # here we MUST call the sync version to avoid possible thread deadlocks
