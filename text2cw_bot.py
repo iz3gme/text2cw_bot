@@ -48,6 +48,7 @@ import subprocess
 from os import remove, rename
 import re
 from urllib.parse import urlparse
+from random import sample
 
 # helper function to get latest news from an RSS feed
 import feedparser
@@ -80,9 +81,33 @@ def get_feed(feed_url, last_n=1):
     return cw_message
 
 
-MAIN, TYPING_WPM, TYPING_SNR, TYPING_TONE, TYPING_TITLE, TYPING_FORMAT, TYPING_DELMESSAGE, EFFECTIVEWPM, TYPING_EFFECTIVEWPM, TYPING_FEED, TYPING_NEWS_TO_READ, TYPING_SHOW_NEWS, TYPING_QRQ, TYPING_EXTRA_SPACE = range(14)
+MAIN, TYPING_WPM, TYPING_SNR, TYPING_TONE, TYPING_TITLE, TYPING_FORMAT, TYPING_DELMESSAGE, EFFECTIVEWPM, TYPING_EFFECTIVEWPM, TYPING_FEED, TYPING_NEWS_TO_READ, TYPING_SHOW_NEWS, TYPING_QRQ, TYPING_EXTRA_SPACE, TYPING_SHUFFLE = range(15)
 
 ANSWER_FORMATS = ['voice', 'audio']
+
+
+ANSWER_SHUFFLES = ['nothing', 'words', 'letters', 'both']
+
+def shuffle_nothing(text):
+    return text
+
+def shuffle_words(text):
+    t = text.split()
+    return ' '.join(sample(t, len(t)))
+
+def shuffle_letters(text):
+    return ' '.join([''.join(sample(word, len(word))) for word in text.split()])
+
+def shuffle_both(text):
+    t = text.split()
+    return ' '.join([''.join(sample(word, len(word))) for word in sample(t, len(t))])
+
+do_shuffle = {
+    'nothing': shuffle_nothing,
+    'words': shuffle_words,
+    'letters': shuffle_letters,
+    'both': shuffle_both
+}
 
 DEFAULTS = {
     'wpm': 25,
@@ -97,6 +122,7 @@ DEFAULTS = {
     'show news': False,
     'qrq': None,
     'extra space': None,
+    'shuffle': 'nothing',
 }
 
 class bot():
@@ -123,6 +149,7 @@ class bot():
                 ['format', 'Choose between voice and audio answer format', self._cmd_format, TYPING_FORMAT, self._accept_format],
                 ['delmessage', 'Tell me if you want your messages to be deleted once converted', self._cmd_delmessage, TYPING_DELMESSAGE, self._accept_delmessage],
                 ['qrq', 'Increase speed by 1 wpm in intervals of minutes', self._cmd_qrq, TYPING_QRQ, self._accept_qrq],
+                ['shuffle', 'Shuffle words and/or letters in text (just in messages, not in feeds)', self._cmd_shuffle, TYPING_SHUFFLE, self._accept_shuffle],
                 ['settings', 'show current settings', self._cmd_settings, None, None],
             ]
 
@@ -187,6 +214,22 @@ class bot():
                 [
                     [
                         KeyboardButton(i) for i in ANSWER_FORMATS
+                    ],
+                    [
+                        KeyboardButton('/leave'),
+                    ],
+                ],
+                resize_keyboard=True,
+                one_time_keyboard=False
+            )
+            return replymarkup
+
+        @property
+        def _keyboard_shuffles(self):
+            replymarkup = ReplyKeyboardMarkup(
+                [
+                    [
+                        KeyboardButton(i) for i in ANSWER_SHUFFLES
                     ],
                     [
                         KeyboardButton('/leave'),
@@ -722,6 +765,43 @@ class bot():
                 )
                 return MAIN
 
+        def _cmd_shuffle(self, update: Update, context: CallbackContext) -> None:
+            logging.debug('bot._cmd_shuffle')
+            if self._you_exist(update, context):
+                if len(context.args) > 0:
+                    return self._set_shuffle(update, context, context.args[0])
+
+                update.message.reply_text(
+                    "\n".join([
+                        "Current shuffle is %s" % context.user_data["shuffle"],
+                        "I can shuffle " + ', '.join(ANSWER_FORMATS) + " in messages you send me so you can have a different way to exercize",
+                        "Please note that I'll never shuffle news text",
+                        "What do you want me to shuffle?"
+                    ]),
+                    reply_markup=self._keyboard_shuffles
+                )
+                return TYPING_SHUFFLE
+
+        def _accept_shuffle(self, update: Update, context: CallbackContext) -> None:
+            logging.debug('bot._accept_shuffle')
+            if self._you_exist(update, context):
+                return self._set_shuffle(update, context, update.message.text)
+
+        def _set_shuffle(self, update: Update, context: CallbackContext, value) -> None:
+            value = value.lower()
+            if value not in ANSWER_SHUFFLES:
+                update.message.reply_text(
+                    "Hey ... this is not a shuffle I know!!\nPlease choose between "+ ', '.join(ANSWER_SHUFFLES)
+                )
+                return None
+            else:
+                context.user_data["shuffle"] = value
+                update.message.reply_text(
+                    "Ok - shuffle is now %s" % value,
+                    reply_markup=self._keyboard
+                )
+                return MAIN
+
         def _cmd_delmessage(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._cmd_delmessage')
             if self._you_exist(update, context):
@@ -894,7 +974,11 @@ class bot():
         def _handle_text(self, update: Update, context: CallbackContext) -> None:
             if self._you_exist(update, context):
                 delmessage = context.user_data['delmessage']
-                self._reply_with_audio(update, context, update.message.text)
+                shuffle =  context.user_data['shuffle']
+
+                text = update.message.text
+                text = do_shuffle[shuffle](text)
+                self._reply_with_audio(update, context, text)
                 if delmessage:
                     update.message.delete()
 
