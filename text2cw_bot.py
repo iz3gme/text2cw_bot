@@ -68,12 +68,38 @@ def get_feed(feed_url, last_n=1):
     NewsFeed = feedparser.parse(feed_url)
 
     if NewsFeed.bozo == 0:
-        news = { e.published_parsed:(strftime("%d/%m/%Y %H:%M", e.published_parsed), e.title, e.summary) for e in NewsFeed.entries}
+        # feeds out there can be malformed so we try to be as safe as possible
+        news = dict()
+        for i,e in enumerate(NewsFeed.entries):
+            published = getattr(e, "published_parsed", None)
+            title = getattr(e, "title", None)
+            summary = getattr(e, "summary", None)
+
+            entry = list()
+            if published:
+                k = published
+                entry.append(published)
+            else:
+                k = i
+            if title:
+                entry.append(title)
+            if summary:
+                entry.append(summary)
+            news[k] = entry
         articles = [" <BT> ".join(v) for k,v in sorted(news.items())[-last_n:]]
 
-        cw_message = "VVV VVV de " + NewsFeed.feed.title + " <AR> "
+        title = getattr(NewsFeed.feed, "title", None)
+        if title:
+             cw_message = "VVV VVV de " + title + " <AR> "
+        else:
+             cw_message = "VVV VVV de morsebot <AR>"
         cw_message += " <AR> ".join(articles)
-        cw_message += " de " + NewsFeed.feed.title + " <SK>"
+        cw_message += " <AR> "
+        if title:
+            cw_message += " de " + title + " <SK>"
+        else:
+            cw_message += " de morsebot <SK>"
+
         cw_message = ' '.join(cw_message.split())  #remove multiple spaces from message
     else:
         cw_message = None
