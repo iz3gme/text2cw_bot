@@ -78,7 +78,7 @@ def get_feed(feed_url, last_n=1):
             entry = list()
             if published:
                 k = published
-                entry.append(published)
+                entry.append(strftime("%d/%m/%Y %H:%M", published))
             else:
                 k = i
             if title:
