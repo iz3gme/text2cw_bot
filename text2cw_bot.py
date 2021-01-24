@@ -397,7 +397,10 @@ class bot():
                 if show_news:
                     context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
                     # send clear text adding a newline after each prosign
-                    update.message.reply_text(re.sub('(<..>)', r'\1\n', text))
+                    mtext = re.sub('(<..>)', r'\1\n', text)
+                    # split message in 4096 chunks (telegram message limit)
+                    for i in range(0, len(mtext), 4096):
+                        update.message.reply_text(mtext[i:i+4096])
                 # here we MUST call the sync version to avoid possible thread deadlocks
                 self._sync_reply_with_audio(update, context, text, reply_markup=self._keyboard)
             else:
