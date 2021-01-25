@@ -908,7 +908,7 @@ class bot():
 
                 update.message.reply_text(
                     "How many news do you want from the feed? (current value is %s)\nRemember that my reading speed is about 1 news/s so if you ask me 60 news I'll take about 1 minute to answer, if you are in a hurry please ask someone else :-P" % str(context.user_data["news to read"]),
-                    reply_markup=self._keyboard_leave
+                    reply_markup=self._keyboard_all
                 )
                 return TYPING_NEWS_TO_READ
 
