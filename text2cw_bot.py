@@ -343,13 +343,8 @@ class bot():
             return False
 
         # due to persistence command methods cannot be asyncronous (or at least I don't know how to make it in a safe way)
-        # time consuming steps have been isolated and we call them from sync methods
-        @run_async
+        # time consuming steps have been isolated and we call them using run_async()
         def _reply_with_audio(self, update: Update, context: CallbackContext, text, reply_markup=None):
-            ''' this is just an async wrapper to the sync function '''
-            self._sync_reply_with_audio( update, context, text, reply_markup)
-
-        def _sync_reply_with_audio(self, update: Update, context: CallbackContext, text, reply_markup=None):
             wpm = context.user_data['wpm']
             effectivewpm = context.user_data['effectivewpm']
             extraspace = context.user_data['extra space']
@@ -385,7 +380,6 @@ class bot():
                 update.message.reply_voice(voice=open(tempfilename, "rb"), caption=title, reply_markup=reply_markup)
             remove(tempfilename)
 
-        @run_async
         def _do_read_news(self, update: Update, context: CallbackContext, feed, last_n, show_news):
             context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
             last_n = last_n if last_n != 'all' else 0
@@ -402,7 +396,7 @@ class bot():
                     for i in range(0, len(mtext), 4096):
                         update.message.reply_text(mtext[i:i+4096])
                 # here we MUST call the sync version to avoid possible thread deadlocks
-                self._sync_reply_with_audio(update, context, text, reply_markup=self._keyboard)
+                self._reply_with_audio(update, context, text, reply_markup=self._keyboard)
             else:
                 update.message.reply_text("Sorry but something went wrong and I coudn't read the feed\nAre you sure you gave me a valid RSS feed URL?\nPlease start back with the command if you want to try again", reply_markup=self._keyboard)
 
@@ -982,7 +976,8 @@ class bot():
                 last_n = context.user_data["news to read"]
                 show_news = context.user_data["show news"]
                 # do the real job in differt thread
-                self._do_read_news(update, context, feed, last_n, show_news)
+                self._updater.dispatcher.run_async(self._do_read_news, update, context, feed, last_n, show_news, update=update)
+
                 return MAIN
 
         def _cmd_leave(self, update: Update, context: CallbackContext) -> None:
@@ -1007,9 +1002,18 @@ class bot():
 
                 text = update.message.text
                 text = do_shuffle[shuffle](text)
-                self._reply_with_audio(update, context, text)
+                # do the real job in differt thread
+                self._updater.dispatcher.run_async(self._reply_with_audio, update, context, text, update=update)
                 if delmessage:
                     update.message.delete()
+
+        def _error_handler(self, update: Update, context: CallbackContext) -> None:
+            """Log the error and send user a message to notify the problem"""
+            # Log the error before we do anything else, so we can see it even if something breaks.
+            logger.error(msg="Exception caught by error handler:", exc_info=context.error)
+
+            # notify the user
+            update.message.reply_text("I'm sorry but you probably hit a bug, please try again\nIf it happens again send a message to my creator @IZ3GME to fix it")
 
         def start(self, token):
             pp = PicklePersistence(filename='text2cw_bot.data')
@@ -1053,6 +1057,9 @@ class bot():
 
             self._updater.dispatcher.add_handler(conv_handler)
             self._updater.dispatcher.add_handler(MessageHandler(Filters.all, self._handle_unknown))
+
+            # ...and the error handler
+            self._updater.dispatcher.add_error_handler(self._error_handler)
 
             self._updater.start_polling(bootstrap_retries=-1)
 
