@@ -54,7 +54,7 @@ from random import sample
 import feedparser
 from time import strftime
 
-def get_feed(feed_url, last_n=1):
+def get_feed(feed_url, last_n=1, news_time=True):
     '''
     Read RSS feed and format a CW message with lates news
     
@@ -76,7 +76,7 @@ def get_feed(feed_url, last_n=1):
             summary = getattr(e, "summary", None)
 
             entry = list()
-            if published:
+            if published and news_time:
                 k = published
                 entry.append(strftime("%d/%m/%Y %H:%M", published))
             else:
@@ -107,7 +107,7 @@ def get_feed(feed_url, last_n=1):
     return cw_message
 
 
-MAIN, TYPING_WPM, TYPING_SNR, TYPING_TONE, TYPING_TITLE, TYPING_FORMAT, TYPING_DELMESSAGE, EFFECTIVEWPM, TYPING_EFFECTIVEWPM, TYPING_FEED, TYPING_NEWS_TO_READ, TYPING_SHOW_NEWS, TYPING_QRQ, TYPING_EXTRA_SPACE, TYPING_SHUFFLE = range(15)
+MAIN, TYPING_WPM, TYPING_SNR, TYPING_TONE, TYPING_TITLE, TYPING_FORMAT, TYPING_DELMESSAGE, EFFECTIVEWPM, TYPING_EFFECTIVEWPM, TYPING_FEED, TYPING_NEWS_TO_READ, TYPING_SHOW_NEWS, TYPING_QRQ, TYPING_EXTRA_SPACE, TYPING_SHUFFLE, TYPING_NEWS_TIME = range(16)
 
 ANSWER_FORMATS = ['voice', 'audio']
 
@@ -149,6 +149,7 @@ DEFAULTS = {
     'qrq': None,
     'extra space': None,
     'shuffle': 'nothing',
+    'news time': True
 }
 
 class bot():
@@ -161,10 +162,10 @@ class bot():
         @property
         def _commands(self):
             return [
-                ['help', 'ask for help message', self._cmd_help, None, None],
                 ['feed', 'Change feed source', self._cmd_feed, TYPING_FEED, self._accept_feed],
                 ['news_to_read', 'Set number of news to read from feed', self._cmd_news_to_read, TYPING_NEWS_TO_READ, self._accept_news_to_read],
                 ['show_news', 'Tell me if you want to have the news in clear text also', self._cmd_show_news, TYPING_SHOW_NEWS, self._accept_show_news],
+                ['news_time', 'Do you want published date and time in front of each news? (if available)', self._cmd_news_time, TYPING_NEWS_TIME, self._accept_news_time],
                 ['read_news', 'I\'ll read the feed for you and send news in cw', self._cmd_read_news, None, None],
                 ['wpm', 'Set speed in words per minute', self._cmd_wpm, TYPING_WPM, self._accept_wpm],
                 ['tone', 'Set tone frequency in Hertz', self._cmd_tone, TYPING_TONE, self._accept_tone],
@@ -176,6 +177,7 @@ class bot():
                 ['delmessage', 'Tell me if you want your messages to be deleted once converted', self._cmd_delmessage, TYPING_DELMESSAGE, self._accept_delmessage],
                 ['qrq', 'Increase speed by 1 wpm in intervals of minutes', self._cmd_qrq, TYPING_QRQ, self._accept_qrq],
                 ['shuffle', 'Shuffle words and/or letters in text (just in messages, not in feeds)', self._cmd_shuffle, TYPING_SHUFFLE, self._accept_shuffle],
+                ['help', 'ask for help message', self._cmd_help, None, None],
                 ['settings', 'show current settings', self._cmd_settings, None, None],
             ]
 
@@ -381,10 +383,11 @@ class bot():
             remove(tempfilename)
 
         def _do_read_news(self, update: Update, context: CallbackContext, feed, last_n, show_news):
+            news_time = context.user_data['news time']
             context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
             last_n = last_n if last_n != 'all' else 0
             try:
-                text = get_feed(feed, last_n)
+                text = get_feed(feed, last_n, news_time)
             except:
                 text = None
             if text:
@@ -965,6 +968,42 @@ class bot():
                 context.user_data["show news"] = value
                 update.message.reply_text(
                     "Ok - I'll show the news text to you from now on" if value else "OK - I'll keep the news text secret :-P",
+                    reply_markup=self._keyboard
+                )
+                return MAIN
+
+        def _cmd_news_time(self, update: Update, context: CallbackContext) -> None:
+            logging.debug('bot._cmd_news_time')
+            if self._you_exist(update, context):
+                if len(context.args) > 0:
+                    return self._set_news_time(update, context, context.args[0])
+
+                update.message.reply_text(
+                    "\n".join([
+                        "Previously you asked me to send published date and time in front of each news" if context.user_data["news time"] else "Actually I dont published date and time in front of each news",
+                        "Do you want me to send the news date and time next time?"
+                    ]),
+                    reply_markup=self._keyboard_yesno
+                )
+                return TYPING_NEWS_TIME
+
+        def _accept_news_time(self, update: Update, context: CallbackContext) -> None:
+            logging.debug('bot._accept_news_time')
+            if self._you_exist(update, context):
+                return self._set_show_news(update, context, update.message.text)
+
+        def _set_show_news(self, update: Update, context: CallbackContext, value) -> None:
+            value = value.lower()
+            if value not in ["yes", "no"]:
+                update.message.reply_text(
+                    "Please be serious, answer Yes or No"
+                )
+                return None
+            else:
+                value = value == "yes"
+                context.user_data["news time"] = value
+                update.message.reply_text(
+                    "Ok - I'll send published date and time in front of each news from now on" if value else "OK - I'll not send published date and time",
                     reply_markup=self._keyboard
                 )
                 return MAIN
