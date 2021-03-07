@@ -957,7 +957,7 @@ class bot():
                 update.message.reply_text(
                     "\n".join([
                         "Current shuffle is %s" % context.user_data["shuffle"],
-                        "I can shuffle " + ', '.join(ANSWER_FORMATS) + " in "
+                        "I can shuffle " + ', '.join(ANSWER_SHUFFLES) + " in "
                         "messages you send me so you can have a different way "
                         "to exercize",
                         "Please note that I'll never shuffle news text",
