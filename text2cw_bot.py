@@ -116,8 +116,8 @@ def get_feed(feed_url, last_n=1, news_time=True):
 MAIN, TYPING_WPM, TYPING_SNR, TYPING_TONE, TYPING_TITLE, TYPING_FORMAT, \
     TYPING_DELMESSAGE, EFFECTIVEWPM, TYPING_EFFECTIVEWPM, TYPING_FEED, \
     TYPING_NEWS_TO_READ, TYPING_SHOW_NEWS, TYPING_QRQ, TYPING_EXTRA_SPACE, \
-    TYPING_SHUFFLE, TYPING_NEWS_TIME \
-    = range(16)
+    TYPING_SHUFFLE, TYPING_NEWS_TIME, TYPING_SIMPLIFY \
+    = range(17)
 
 ANSWER_FORMATS = ['voice', 'audio']
 
@@ -152,6 +152,24 @@ do_shuffle = {
     'both': shuffle_both
 }
 
+
+def simplify_text(s: str):
+    """ Simplify string removing uncommon chars """
+
+    # translate accents to simple letters
+    simple = s.translate(str.maketrans("àèéìòùç", "aeeiouc"))
+
+    # replace unwanted chars with space
+    # <> are needed for prosigns and | for inline commands
+    pattern = re.compile("[^a-zA-Z0-9-/.?'=,<>|]")
+    simple = pattern.sub(' ', simple)
+
+    # remove multiple spaces from message
+    simple = ' '.join(simple.split())
+
+    return simple
+
+
 DEFAULTS = {
     'wpm': 25,
     'effectivewpm': None,
@@ -166,7 +184,8 @@ DEFAULTS = {
     'qrq': None,
     'extra space': None,
     'shuffle': 'nothing',
-    'news time': True
+    'news time': True,
+    'simplify': False,
 }
 
 
@@ -225,6 +244,9 @@ class bot():
                 ['shuffle', 'Shuffle words and/or letters in text (just in '
                     'messages, not in feeds)', self._cmd_shuffle,
                     TYPING_SHUFFLE, self._accept_shuffle],
+                ['simplify', 'Remove uncommon symbols from message',
+                     self._cmd_simplify, TYPING_SIMPLIFY,
+                     self._accept_simplify],
                 ['help', 'ask for help message', self._cmd_help, None, None],
                 ['settings', 'show current settings', self._cmd_settings,
                     None, None],
@@ -419,6 +441,10 @@ class bot():
             title = context.user_data['title']
             format = context.user_data['format']
             qrq = context.user_data['qrq']
+            simplify = context.user_data['simplify']
+
+            if simplify:
+                    text = simplify_text(text)
 
             tempfilename = "/tmp/" + update.message.from_user.first_name + \
                 "_" + str(update.message.message_id) + "_" + title
@@ -1029,6 +1055,52 @@ class bot():
                 context.user_data["delmessage"] = value
                 update.message.reply_text(
                     "Ok - I'll delete messages from now on" \
+                    if value else "OK - I'll leave your messages untouched",
+                    reply_markup=self._keyboard
+                )
+                return MAIN
+
+        def _cmd_simplify(self, update: Update, context: CallbackContext
+                            ) -> None:
+            logging.debug('bot._cmd_simplify')
+            if self._you_exist(update, context):
+                if len(context.args) > 0:
+                    return self._set_simplify(update, context,
+                                                context.args[0])
+
+                update.message.reply_text(
+                    "\n".join([
+                        "I can simplify text removing uncommon symbols and "
+                        "translating accented letters to plain ones",
+                        "Previously you asked me to simplify messages" \
+                        if context.user_data["simplify"] else \
+                        "Actually I dont simplify messages",
+                        "Do you want me to simplify text?"
+                    ]),
+                    reply_markup=self._keyboard_yesno
+                )
+                return TYPING_SIMPLIFY
+
+        def _accept_simplify(self, update: Update,
+                               context: CallbackContext) -> None:
+            logging.debug('bot._accept_simplify')
+            if self._you_exist(update, context):
+                return self._set_simplify(update, context,
+                                            update.message.text)
+
+        def _set_simplify(self, update: Update, context: CallbackContext,
+                            value) -> None:
+            value = value.lower()
+            if value not in ["yes", "no"]:
+                update.message.reply_text(
+                    "Please be serious, answer Yes or No"
+                )
+                return None
+            else:
+                value = value == "yes"
+                context.user_data["simplify"] = value
+                update.message.reply_text(
+                    "Ok - I'll simplify messages from now on" \
                     if value else "OK - I'll leave your messages untouched",
                     reply_markup=self._keyboard
                 )
