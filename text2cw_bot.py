@@ -104,9 +104,6 @@ def get_feed(feed_url, last_n=1, news_time=True):
             cw_message += " de " + title + " <SK>"
         else:
             cw_message += " de morsebot <SK>"
-
-        # remove multiple spaces from message
-        cw_message = ' '.join(cw_message.split())
     else:
         cw_message = None
 
@@ -116,8 +113,8 @@ def get_feed(feed_url, last_n=1, news_time=True):
 MAIN, TYPING_WPM, TYPING_SNR, TYPING_TONE, TYPING_TITLE, TYPING_FORMAT, \
     TYPING_DELMESSAGE, EFFECTIVEWPM, TYPING_EFFECTIVEWPM, TYPING_FEED, \
     TYPING_NEWS_TO_READ, TYPING_SHOW_NEWS, TYPING_QRQ, TYPING_EXTRA_SPACE, \
-    TYPING_SHUFFLE, TYPING_NEWS_TIME, TYPING_SIMPLIFY \
-    = range(17)
+    TYPING_SHUFFLE, TYPING_NEWS_TIME, TYPING_SIMPLIFY, TYPING_NOACCENTS \
+    = range(18)
 
 ANSWER_FORMATS = ['voice', 'audio']
 
@@ -156,18 +153,22 @@ do_shuffle = {
 def simplify_text(s: str):
     """ Simplify string removing uncommon chars """
 
-    # translate accents to simple letters
-    simple = s.translate(str.maketrans("àèéìòùç", "aeeiouc"))
-
     # replace unwanted chars with space
+    # acents are left for specific translate function
     # <> are needed for prosigns and | for inline commands
-    pattern = re.compile("[^a-zA-Z0-9-/.?'=,<>|]")
-    simple = pattern.sub(' ', simple)
+    pattern = re.compile("[^a-zA-Z0-9-/.?'=,<>|àèéìòùç]")
+    simple = pattern.sub(' ', s)
 
     # remove multiple spaces from message
     simple = ' '.join(simple.split())
 
     return simple
+
+
+def translate_accents(s: str):
+    # translate accents to simple letters
+    return s.translate(str.maketrans("àèéìòùç", "aeeiouc"))
+
 
 
 DEFAULTS = {
@@ -186,6 +187,7 @@ DEFAULTS = {
     'shuffle': 'nothing',
     'news time': True,
     'simplify': False,
+    'no accents': False,
 }
 
 
@@ -247,6 +249,9 @@ class bot():
                 ['simplify', 'Remove uncommon symbols from message',
                      self._cmd_simplify, TYPING_SIMPLIFY,
                      self._accept_simplify],
+                ['noaccents', 'Translate accented letters to simple ones',
+                     self._cmd_noaccents, TYPING_NOACCENTS,
+                     self._accept_noaccents],
                 ['help', 'ask for help message', self._cmd_help, None, None],
                 ['settings', 'show current settings', self._cmd_settings,
                     None, None],
@@ -442,9 +447,15 @@ class bot():
             format = context.user_data['format']
             qrq = context.user_data['qrq']
             simplify = context.user_data['simplify']
+            no_accents = context.user_data['no accents']
 
             if simplify:
                     text = simplify_text(text)
+            if no_accents:
+                    text = translate_accents(text)
+
+            # remove multiple spaces from message
+            text = ' '.join(text.split())
 
             tempfilename = "/tmp/" + update.message.from_user.first_name + \
                 "_" + str(update.message.message_id) + "_" + title
@@ -1101,6 +1112,51 @@ class bot():
                 context.user_data["simplify"] = value
                 update.message.reply_text(
                     "Ok - I'll simplify messages from now on" \
+                    if value else "OK - I'll leave your messages untouched",
+                    reply_markup=self._keyboard
+                )
+                return MAIN
+
+        def _cmd_noaccents(self, update: Update, context: CallbackContext
+                            ) -> None:
+            logging.debug('bot._cmd_noaccents')
+            if self._you_exist(update, context):
+                if len(context.args) > 0:
+                    return self._set_noaccents(update, context,
+                                                context.args[0])
+
+                update.message.reply_text(
+                    "\n".join([
+                        "I can translate accented letters to plain ones",
+                        "Previously you asked me to do this" \
+                        if context.user_data["no accents"] else \
+                        "Actually I dont translate accents",
+                        "Do you want me to remove accented letters?"
+                    ]),
+                    reply_markup=self._keyboard_yesno
+                )
+                return TYPING_NOACCENTS
+
+        def _accept_noaccents(self, update: Update,
+                               context: CallbackContext) -> None:
+            logging.debug('bot._accept_noaccents')
+            if self._you_exist(update, context):
+                return self._set_noaccents(update, context,
+                                            update.message.text)
+
+        def _set_noaccents(self, update: Update, context: CallbackContext,
+                            value) -> None:
+            value = value.lower()
+            if value not in ["yes", "no"]:
+                update.message.reply_text(
+                    "Please be serious, answer Yes or No"
+                )
+                return None
+            else:
+                value = value == "yes"
+                context.user_data["no accents"] = value
+                update.message.reply_text(
+                    "Ok - I'll translate accented letters from now on" \
                     if value else "OK - I'll leave your messages untouched",
                     reply_markup=self._keyboard
                 )
