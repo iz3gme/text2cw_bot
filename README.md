@@ -14,7 +14,8 @@ written in the perfect style of "it just works" 0=)
 
 If you want to run your own copy of the bot you have to
 - install telegram bot library for python3 (https://python-telegram-bot.org/)
-- install ebook2cw and check binary is in /usr/bin/ebook2cw
+- install ebook2cw and check binary is /usr/bin/ebook2cw
+- install QSO (part of morse package) and check binary is /usr/bin/QSO
 - ask botfather to create the bot token as usual
 - start the bot with
   ```sh

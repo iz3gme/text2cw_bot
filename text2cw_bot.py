@@ -207,7 +207,7 @@ class bot():
                     self._cmd_news_to_read, TYPING_NEWS_TO_READ,
                     self._accept_news_to_read],
                 ['show_news',
-                    'Tell me if you want to have the news in clear text also',
+                    'Tell me if you want to have the news and QSO in clear text also',
                     self._cmd_show_news, TYPING_SHOW_NEWS,
                     self._accept_show_news],
                 ['news_time',
@@ -243,8 +243,10 @@ class bot():
                     TYPING_DELMESSAGE, self._accept_delmessage],
                 ['qrq', 'Increase speed by 1 wpm in intervals of minutes',
                     self._cmd_qrq, TYPING_QRQ, self._accept_qrq],
+                ['qso', 'Generate a random QSO',
+                    self._cmd_qso, None, None],
                 ['shuffle', 'Shuffle words and/or letters in text (just in '
-                    'messages, not in feeds)', self._cmd_shuffle,
+                    'messages, not in feeds or qso)', self._cmd_shuffle,
                     TYPING_SHUFFLE, self._accept_shuffle],
                 ['simplify', 'Remove uncommon symbols from message',
                      self._cmd_simplify, TYPING_SIMPLIFY,
@@ -501,6 +503,31 @@ class bot():
                                     caption=title,
                                     reply_markup=reply_markup)
             remove(tempfilename)
+
+        def _do_qso(self, update: Update, context: CallbackContext, show_news):
+            context.bot.send_chat_action(
+                            chat_id=update.effective_message.chat_id,
+                            action=ChatAction.TYPING)
+            try:
+                command = ["/usr/bin/QSO"]
+                output = subprocess.run(command, capture_output=True, text=True)
+                text = output.stdout
+            except:
+                text = None
+            if text:
+                if show_news:
+                    context.bot.send_chat_action(
+                            chat_id=update.effective_message.chat_id,
+                            action=ChatAction.TYPING)
+                    update.message.reply_text(text)
+                # to avoid possible thread deadlocks we cannot use run_async()
+                self._reply_with_audio(update, context, text,
+                                       reply_markup=self._keyboard)
+            else:
+                update.message.reply_text(
+                    "Sorry but something went wrong, you probably hit a bug\n"
+                    "Please try again later",
+                    reply_markup=self._keyboard)
 
         def _do_read_news(self, update: Update, context: CallbackContext,
                           feed, last_n, show_news):
@@ -1350,10 +1377,21 @@ class bot():
                 feed = context.user_data["feed"]
                 last_n = context.user_data["news to read"]
                 show_news = context.user_data["show news"]
-                # do the real job in differt thread
+                # do the real job in different thread
                 self._updater.dispatcher.run_async(
                                     self._do_read_news, update,
                                     context, feed, last_n, show_news,
+                                    update=update)
+
+                return MAIN
+
+        def _cmd_qso(self, update: Update, context: CallbackContext) -> None:
+            logging.debug('bot._cmd_qso')
+            if self._you_exist(update, context):
+                show_news = context.user_data["show news"]
+                # do the real job in different thread
+                self._updater.dispatcher.run_async(
+                                    self._do_qso, update, context, show_news,
                                     update=update)
 
                 return MAIN
