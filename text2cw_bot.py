@@ -1108,8 +1108,7 @@ class bot():
 
                 update.message.reply_text(
                     "\n".join([
-                        "I can simplify text removing uncommon symbols and "
-                        "translating accented letters to plain ones",
+                        "I can simplify text removing uncommon symbols",
                         "Previously you asked me to simplify messages" \
                         if context.user_data["simplify"] else \
                         "Actually I dont simplify messages",
