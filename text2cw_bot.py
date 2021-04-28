@@ -1348,9 +1348,9 @@ class bot():
                               ) -> None:
             logging.debug('bot._accept_news_time')
             if self._you_exist(update, context):
-                return self._set_show_news(update, context, update.message.text)
+                return self._set_news_time(update, context, update.message.text)
 
-        def _set_show_news(self, update: Update, context: CallbackContext,
+        def _set_news_time(self, update: Update, context: CallbackContext,
                            value) -> None:
             value = value.lower()
             if value not in ["yes", "no"]:
