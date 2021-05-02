@@ -41,7 +41,8 @@ import subprocess
 from os import remove, rename
 import re
 from urllib.parse import urlparse
-from random import sample
+from random import sample, choices
+import string
 
 # helper function to get latest news from an RSS feed
 import feedparser
@@ -113,8 +114,9 @@ def get_feed(feed_url, last_n=1, news_time=True):
 MAIN, TYPING_WPM, TYPING_SNR, TYPING_TONE, TYPING_TITLE, TYPING_FORMAT, \
     TYPING_DELMESSAGE, EFFECTIVEWPM, TYPING_EFFECTIVEWPM, TYPING_FEED, \
     TYPING_NEWS_TO_READ, TYPING_SHOW_NEWS, TYPING_QRQ, TYPING_EXTRA_SPACE, \
-    TYPING_SHUFFLE, TYPING_NEWS_TIME, TYPING_SIMPLIFY, TYPING_NOACCENTS \
-    = range(18)
+    TYPING_SHUFFLE, TYPING_NEWS_TIME, TYPING_SIMPLIFY, TYPING_NOACCENTS, \
+    TYPING_CHARSET, TYPING_GROUPS \
+    = range(20)
 
 ANSWER_FORMATS = ['voice', 'audio']
 
@@ -148,6 +150,14 @@ do_shuffle = {
     'letters': shuffle_letters,
     'both': shuffle_both
 }
+
+
+def gen_groups(charset: str, k: int):
+    return " ".join(
+            ["".join(
+                    choices(charset, k=5)
+                    ) for i in range(k)
+             ])
 
 
 def simplify_text(s: str):
@@ -188,6 +198,8 @@ DEFAULTS = {
     'news time': True,
     'simplify': False,
     'no accents': False,
+    'charset': string.ascii_uppercase + string.digits,
+    'groups': 20,
 }
 
 
@@ -218,6 +230,17 @@ class bot():
                 ['read_news',
                     "I`ll read the feed for you and send news in cw",
                     self._cmd_read_news, None, None],
+                ['charset',
+                    'Change the set of chars used to generate groups',
+                    self._cmd_charset, TYPING_CHARSET,
+                    self._accept_charset],
+                ['groups',
+                    'Change the number of groups to send',
+                    self._cmd_groups, TYPING_GROUPS,
+                    self._accept_groups],
+                ['send_groups',
+                    "Generate and send a sequence of random groups",
+                    self._send_groups, None, None],
                 ['wpm', 'Set speed in words per minute', self._cmd_wpm,
                     TYPING_WPM, self._accept_wpm],
                 ['tone', 'Set tone frequency in Hertz', self._cmd_tone,
@@ -249,11 +272,11 @@ class bot():
                     'messages, not in feeds or qso)', self._cmd_shuffle,
                     TYPING_SHUFFLE, self._accept_shuffle],
                 ['simplify', 'Remove uncommon symbols from message',
-                     self._cmd_simplify, TYPING_SIMPLIFY,
-                     self._accept_simplify],
+                    self._cmd_simplify, TYPING_SIMPLIFY,
+                    self._accept_simplify],
                 ['noaccents', 'Translate accented letters to simple ones',
-                     self._cmd_noaccents, TYPING_NOACCENTS,
-                     self._accept_noaccents],
+                    self._cmd_noaccents, TYPING_NOACCENTS,
+                    self._accept_noaccents],
                 ['help', 'ask for help message', self._cmd_help, None, None],
                 ['settings', 'show current settings', self._cmd_settings,
                     None, None],
@@ -407,6 +430,20 @@ class bot():
                 [
                     [
                         "Default",
+                        KeyboardButton('/leave'),
+                    ],
+                ],
+                resize_keyboard=True,
+                one_time_keyboard=False
+            )
+            return replymarkup
+
+        @property
+        def _keyboard_charset(self):
+            replymarkup = ReplyKeyboardMarkup(
+                [
+                    [
+                        "Letters", "Digits", "Both", "All",
                         KeyboardButton('/leave'),
                     ],
                 ],
@@ -614,6 +651,107 @@ class bot():
                                     )
                 update.message.reply_text(text)
                 return MAIN
+
+        def _cmd_charset(self, update: Update, context: CallbackContext
+                         ) -> None:
+            logging.debug('bot._cmd_charset')
+            if self._you_exist(update, context):
+                if len(context.args) > 0:
+                    return self._set_charset(update, context,
+                                             " ".join(context.args))
+
+                update.message.reply_text(
+                    "Current charset is\n%s\n"
+                    "Which charset should I use to generate groups?"
+                    % context.user_data["charset"],
+                    reply_markup=self._keyboard_charset
+                )
+                return TYPING_CHARSET
+
+        def _accept_charset(self, update: Update, context: CallbackContext
+                            ) -> None:
+            logging.debug('bot._accept_charset')
+            if self._you_exist(update, context):
+                return self._set_charset(update, context, update.message.text)
+
+        def _set_charset(self, update: Update, context: CallbackContext, value
+                         ) -> None:
+            if value == "Letters":
+                charset = string.ascii_uppercase
+            elif value == "Digits":
+                charset = string.digits
+            elif value == "Both":
+                charset = string.ascii_uppercase + string.digits
+            elif value == "All":
+                charset = string.ascii_uppercase + string.digits + "-/.?'=,"
+            else:
+                # uppercase, remove duplicates and sort
+                charset = "".join(sorted(set(value.upper())))
+            context.user_data["charset"] = charset
+            update.message.reply_text(
+                        "Ok - the new charset is\n%s" % charset,
+                        reply_markup=self._keyboard
+                    )
+            return MAIN
+
+        def _cmd_groups(self, update: Update, context: CallbackContext
+                        ) -> None:
+            logging.debug('bot._cmd_groups')
+            if self._you_exist(update, context):
+                if len(context.args) > 0:
+                    return self._set_groups(update, context, context.args[0])
+
+                update.message.reply_text(
+                    "Current value is %i groups\n"
+                    "How many groups do you want me to send?" %
+                    context.user_data["groups"],
+                    reply_markup=self._keyboard_leave
+                )
+                return TYPING_GROUPS
+
+        def _accept_groups(self, update: Update, context: CallbackContext
+                        ) -> None:
+            logging.debug('bot._accept_groups')
+            if self._you_exist(update, context):
+                return self._set_groups(update, context, update.message.text)
+
+        def _set_groups(self, update: Update, context: CallbackContext, value
+                     ) -> None:
+            try:
+                value = int(value)
+            except ValueError:
+                update.message.reply_text(
+                    "Hey ... this is not a number!!"
+                )
+                return None
+            else:
+                if 1 <= value <= 100:
+                    context.user_data["groups"] = value
+                    update.message.reply_text(
+                        "Ok - I'll send %i groups" % value,
+                        reply_markup=self._keyboard
+                    )
+                    return MAIN
+                else:
+                    update.message.reply_text(
+                        "Sorry - I can send 100 groups at most\nTry again"
+                    )
+
+        def _send_groups(self, update: Update, context: CallbackContext
+                         ) -> None:
+            if self._you_exist(update, context):
+                charset = context.user_data['charset']
+                groups = context.user_data['groups']
+
+                text = gen_groups(charset, groups)
+                update.message.reply_text(text)
+                # do the real job in differt thread
+                self._updater.dispatcher.run_async(
+                                    self._reply_with_audio,
+                                    update,
+                                    context,
+                                    text,
+                                    update=update)
 
         def _cmd_wpm(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._cmd_wpm')
