@@ -16,13 +16,14 @@ If you want to run your own copy of the bot you have to
 - install telegram bot library for python3 (https://python-telegram-bot.org/)
 - install ebook2cw and check binary is /usr/bin/ebook2cw
 - install QSO (part of morse package) and check binary is /usr/bin/QSO
+- install python3-xhtml2pdf and UbuntuMono font (try sudo apt install python3-xhtml2pdf fonts-ubuntu) and check /usr/share/fonts/truetype/ubuntu/UbuntuMono-R.ttf exists
 - ask botfather to create the bot token as usual
 - start the bot with
   ```sh
   text2cw_bot.py -s 0 placeyourtokenhere
   ```
   and test it via telegram
-  
+
 If everything is ok and you want to start it at boot you can copy _text2cw_bot.service_ in
 _/etc/systemd/system_ and put your bot token in there then start it with
   ```sh
