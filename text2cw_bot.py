@@ -113,6 +113,12 @@ def get_feed(feed_url, last_n=1, news_time=True):
     return cw_message
 
 
+def safe_file_name(name: str):
+    # remove unsafe char from file name
+    pattern = re.compile("[/.]")
+    return pattern.sub('', name)
+
+
 MAIN, TYPING_WPM, TYPING_SNR, TYPING_TONE, TYPING_TITLE, TYPING_FORMAT, \
     TYPING_DELMESSAGE, EFFECTIVEWPM, TYPING_EFFECTIVEWPM, TYPING_FEED, \
     TYPING_NEWS_TO_READ, TYPING_SHOW_NEWS, TYPING_QRQ, TYPING_EXTRA_SPACE, \
@@ -614,7 +620,8 @@ class bot():
             # remove multiple spaces from message
             text = ' '.join(text.split())
 
-            tempfilename = "/tmp/" + update.message.from_user.first_name + \
+            tempfilename = "/tmp/" + \
+                safe_file_name(update.message.from_user.first_name) + \
                 "_" + str(update.message.message_id) + "_" + title
             command = ["/usr/bin/ebook2cw", "-c", "DONOTSEPARATECHAPTERS",
                        "-o", tempfilename, "-u"]
@@ -888,7 +895,8 @@ class bot():
                 context.bot.send_chat_action(
                             chat_id=update.effective_message.chat_id,
                             action=ChatAction.TYPING)
-                tempfilename = "/tmp/" + update.message.from_user.first_name +\
+                tempfilename = "/tmp/" + \
+                    safe_file_name(update.message.from_user.first_name) +\
                     "_" + str(update.message.message_id) + \
                     "_groups_exercise.pdf"
                 create_exercise_pdf(context, groups, tempfilename)
