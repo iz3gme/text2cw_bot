@@ -117,13 +117,16 @@ MAIN, TYPING_WPM, TYPING_SNR, TYPING_TONE, TYPING_TITLE, TYPING_FORMAT, \
     TYPING_DELMESSAGE, EFFECTIVEWPM, TYPING_EFFECTIVEWPM, TYPING_FEED, \
     TYPING_NEWS_TO_READ, TYPING_SHOW_NEWS, TYPING_QRQ, TYPING_EXTRA_SPACE, \
     TYPING_SHUFFLE, TYPING_NEWS_TIME, TYPING_SIMPLIFY, TYPING_NOACCENTS, \
-    TYPING_CHARSET, TYPING_GROUPS \
-    = range(20)
+    TYPING_CHARSET, TYPING_GROUPS, TYPING_WAVEFORM \
+    = range(21)
 
 ANSWER_FORMATS = ['voice', 'audio']
 
 
 ANSWER_SHUFFLES = ['nothing', 'words', 'letters', 'both']
+
+
+ANSWER_WAVEFORM = ['sine', 'sawtooth', 'square']
 
 
 def shuffle_nothing(text):
@@ -291,6 +294,7 @@ DEFAULTS = {
     'no accents': False,
     'charset': string.ascii_uppercase + string.digits,
     'groups': 20,
+    'waveform': ANSWER_WAVEFORM[0],
 }
 
 
@@ -340,6 +344,8 @@ class bot():
                     TYPING_WPM, self._accept_wpm],
                 ['tone', 'Set tone frequency in Hertz', self._cmd_tone,
                     TYPING_TONE, self._accept_tone],
+                ['waveform', 'Set waveform', self._cmd_waveform,
+                    TYPING_WAVEFORM, self._accept_waveform],
                 ['snr',
                     'When set a noise background is added, valid values are '
                     '-10 to 10 (in db), set to NONE to disable', self._cmd_snr,
@@ -475,6 +481,22 @@ class bot():
             return replymarkup
 
         @property
+        def _keyboard_waveform(self):
+            replymarkup = ReplyKeyboardMarkup(
+                [
+                    [
+                        KeyboardButton(i) for i in ANSWER_WAVEFORM
+                    ],
+                    [
+                        KeyboardButton('/leave'),
+                    ],
+                ],
+                resize_keyboard=True,
+                one_time_keyboard=False
+            )
+            return replymarkup
+
+        @property
         def _keyboard_yesno(self):
             replymarkup = ReplyKeyboardMarkup(
                 [
@@ -582,6 +604,7 @@ class bot():
             qrq = context.user_data['qrq']
             simplify = context.user_data['simplify']
             no_accents = context.user_data['no accents']
+            waveform = context.user_data['waveform']
 
             if simplify:
                     text = simplify_text(text)
@@ -609,6 +632,7 @@ class bot():
                 command.extend(["-B", "500", "-C", "800"])
             command.extend(["-t", title])
             command.extend(["-a", update.message.from_user.first_name])
+            command.extend(["-T", str(ANSWER_WAVEFORM.index(waveform))])
 
             context.bot.send_chat_action(
                             chat_id=update.effective_message.chat_id,
@@ -1269,6 +1293,47 @@ class bot():
                 context.user_data["format"] = value
                 update.message.reply_text(
                     "Ok - format is now %s" % value,
+                    reply_markup=self._keyboard
+                )
+                return MAIN
+
+        def _cmd_waveform(self, update: Update, context: CallbackContext
+                          ) -> None:
+            logging.debug('bot._cmd_waveform')
+            if self._you_exist(update, context):
+                if len(context.args) > 0:
+                    return self._set_waveform(update, context, context.args[0])
+
+                update.message.reply_text(
+                    "\n".join([
+                        "Current waveform is %s" % context.user_data["waveform"],
+                        "I can generate different waveform " + ' or '.join(
+                                                    ANSWER_WAVEFORM),
+                        "Which one you prefere?"
+                    ]),
+                    reply_markup=self._keyboard_waveform
+                )
+                return TYPING_WAVEFORM
+
+        def _accept_waveform(self, update: Update, context: CallbackContext
+                             ) -> None:
+            logging.debug('bot._accept_waveform')
+            if self._you_exist(update, context):
+                return self._set_waveform(update, context, update.message.text)
+
+        def _set_waveform(self, update: Update, context: CallbackContext, value
+                          ) -> None:
+            value = value.lower()
+            if value not in ANSWER_WAVEFORM:
+                update.message.reply_text(
+                    "Hey ... this is not a waveform I know!!\n"
+                    "Please choose between " + ', '.join(ANSWER_WAVEFORM)
+                )
+                return None
+            else:
+                context.user_data["waveform"] = value
+                update.message.reply_text(
+                    "Ok - waveform is now %s" % value,
                     reply_markup=self._keyboard
                 )
                 return MAIN
