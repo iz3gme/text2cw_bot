@@ -170,12 +170,8 @@ def gen_groups(charset: str, k: int):
              ]
 
 
-def create_exercise_pdf(context: CallbackContext, groups, filename: str):
-    wpm = context.user_data['wpm']
-    effectivewpm = context.user_data['effectivewpm']
-    extraspace = context.user_data['extra space']
-    charset = context.user_data['charset']
-
+def create_exercise_pdf(groups, filename: str, wpm, effectivewpm,
+                        extraspace, charset):
     # build HTML
     source_html = '''
         <html>
@@ -883,6 +879,10 @@ class bot():
                              ) -> None:
             if self._you_exist(update, context):
                 charset = context.user_data['charset']
+                wpm = context.user_data['wpm']
+                effectivewpm = context.user_data['effectivewpm']
+                extraspace = context.user_data['extra space']
+
                 groups = [gen_groups(charset, 12*5) for i in range(3)]
 
                 for exercise in groups:
@@ -899,7 +899,8 @@ class bot():
                     safe_file_name(update.message.from_user.first_name) +\
                     "_" + str(update.message.message_id) + \
                     "_groups_exercise.pdf"
-                create_exercise_pdf(context, groups, tempfilename)
+                create_exercise_pdf(groups, tempfilename,
+                                    wpm, effectivewpm, extraspace, charset)
                 context.bot.send_chat_action(
                             chat_id=update.effective_message.chat_id,
                             action=ChatAction.UPLOAD_DOCUMENT)
