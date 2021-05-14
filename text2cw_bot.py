@@ -721,6 +721,39 @@ class bot():
                     "again",
                     reply_markup=self._keyboard)
 
+        def _do_groups_exercise(self, update: Update, context: CallbackContext
+                             ) -> None:
+            charset = context.user_data['charset']
+            wpm = context.user_data['wpm']
+            effectivewpm = context.user_data['effectivewpm']
+            extraspace = context.user_data['extra space']
+            groups = [gen_groups(charset, 12*5) for i in range(3)]
+
+            for exercise in groups:
+                text = " ".join(exercise)
+                self._reply_with_audio(
+                                update,
+                                context,
+                                text)
+
+            context.bot.send_chat_action(
+                        chat_id=update.effective_message.chat_id,
+                        action=ChatAction.TYPING)
+            tempfilename = "/tmp/" + \
+                safe_file_name(update.message.from_user.first_name) +\
+                "_" + str(update.message.message_id) + \
+                "_groups_exercise.pdf"
+            create_exercise_pdf(groups, tempfilename,
+                                wpm, effectivewpm, extraspace, charset)
+            context.bot.send_chat_action(
+                        chat_id=update.effective_message.chat_id,
+                        action=ChatAction.UPLOAD_DOCUMENT)
+            update.message.reply_document(
+                document=open(tempfilename, "rb"),
+                filename="CW groups exercise.pdf"
+            )
+            remove(tempfilename)
+
         def _cmd_start(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._cmd_start')
 
@@ -878,37 +911,11 @@ class bot():
         def _groups_exercise(self, update: Update, context: CallbackContext
                              ) -> None:
             if self._you_exist(update, context):
-                charset = context.user_data['charset']
-                wpm = context.user_data['wpm']
-                effectivewpm = context.user_data['effectivewpm']
-                extraspace = context.user_data['extra space']
-
-                groups = [gen_groups(charset, 12*5) for i in range(3)]
-
-                for exercise in groups:
-                    text = " ".join(exercise)
-                    self._reply_with_audio(
+                # do the real job in differt thread
+                self._updater.dispatcher.run_async(
+                                    self._do_groups_exercise,
                                     update,
-                                    context,
-                                    text)
-
-                context.bot.send_chat_action(
-                            chat_id=update.effective_message.chat_id,
-                            action=ChatAction.TYPING)
-                tempfilename = "/tmp/" + \
-                    safe_file_name(update.message.from_user.first_name) +\
-                    "_" + str(update.message.message_id) + \
-                    "_groups_exercise.pdf"
-                create_exercise_pdf(groups, tempfilename,
-                                    wpm, effectivewpm, extraspace, charset)
-                context.bot.send_chat_action(
-                            chat_id=update.effective_message.chat_id,
-                            action=ChatAction.UPLOAD_DOCUMENT)
-                update.message.reply_document(
-                    document=open(tempfilename, "rb"),
-                    filename="CW groups exercise.pdf"
-                )
-                remove(tempfilename)
+                                    context)
 
         def _cmd_wpm(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._cmd_wpm')
