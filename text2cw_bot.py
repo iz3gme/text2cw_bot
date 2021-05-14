@@ -220,7 +220,7 @@ def create_exercise_pdf(groups, filename: str, wpm, effectivewpm,
         for line in groups_lines:
             table += '<tr>'
             for group in line:
-                table += '<td>' + group + '</td>'
+                table += '<td>' + " ".join(list(group)) + '</td>'
             table += '</tr>'
         table += '</table>'
         exercise_tables.append(table)
@@ -730,7 +730,7 @@ class bot():
             groups = [gen_groups(charset, 12*5) for i in range(3)]
 
             for exercise in groups:
-                text = " ".join(exercise)
+                text = "VVV= " + " ".join(exercise)
                 self._reply_with_audio(
                                 update,
                                 context,
