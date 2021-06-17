@@ -47,7 +47,7 @@ from datetime import datetime
 
 # Remember, to allow repeatability all random functions must be called
 # exclusively from main thread
-from random import sample, choices, seed
+from random import sample, choices, choice, seed
 
 # helper function to get latest news from an RSS feed
 import feedparser
@@ -167,10 +167,21 @@ do_shuffle = {
 
 
 def gen_groups(charset: str, k: int):
-    return ["".join(
-                    choices(charset, k=5)
-                    ) for i in range(k)
-             ]
+    # this is a very corner case but with 1 symbol there's only 1 possible seq
+    if len(charset) == 1:
+        # this is a very corner case but with 1 symbol
+        # there's only 1 possible seq
+        seq = charset[0] * 5 * k
+    else:
+        seq = choices(charset, k=5*k)
+        # avoid more that 2 repeating char
+        for i in range(len(seq)-3):
+            while (seq[i] == seq[i+1] and seq[i+1] == seq[i+2]):
+                seq[i+2] = choice(charset)
+        seq = "".join(seq)
+    # split in groups of 5
+    groups = [seq[i:i+5] for i in range(0, len(seq), 5) ]
+    return groups
 
 
 def create_exercise_pdf(groups, filename: str, wpm, effectivewpm,
@@ -348,7 +359,7 @@ class bot():
                     'Generate three full group exercises using current settings'
                     ' and send both cw audio and a printable PDF; if you want'
                     ' a repeatable exercise add a keyword to the command, same'
-                    ' keyword same exercise, eg. /groups_exercise mykey1', 
+                    ' keyword same exercise, eg. /groups_exercise mykey1',
                     self._groups_exercise, None, None],
                 ['wpm', 'Set speed in words per minute', self._cmd_wpm,
                     TYPING_WPM, self._accept_wpm],
