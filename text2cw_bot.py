@@ -295,7 +295,7 @@ def translate_accents(s: str):
 
 
 DEFAULTS = {
-    'wpm': 25,
+    'wpm': [25],
     'effectivewpm': None,
     'tone': 600,
     'snr': None,
@@ -635,52 +635,54 @@ class bot():
             # remove multiple spaces from message
             text = ' '.join(text.split())
 
-            tempfilename = "/tmp/" + \
-                safe_file_name(update.message.from_user.first_name) + \
-                "_" + str(update.message.message_id) + "_" + title
-            command = ["/usr/bin/ebook2cw", "-c", "DONOTSEPARATECHAPTERS",
-                       "-o", tempfilename, "-u"]
-            command.extend(["-w", str(wpm)])
-            if effectivewpm is not None:
-                command.extend(["-e", str(effectivewpm)])
-            if extraspace is not None:
-                command.extend(["-W", str(extraspace)])
-            if qrq is not None:
-                command.extend(["-Q", str(qrq)])
-            command.extend(["-f", str(tone)])
-            if snr is not None:
-                command.extend(["-N", str(snr)])
-                # add fixed settings for filter and center freq
-                command.extend(["-B", "500", "-C", "800"])
-            command.extend(["-t", title])
-            command.extend(["-a", update.message.from_user.first_name])
-            command.extend(["-T", str(ANSWER_WAVEFORM.index(waveform))])
+            for w in wpm:
+                t = "%s %iwpm" % (title, w)
+                tempfilename = "/tmp/" + \
+                    safe_file_name(update.message.from_user.first_name) + \
+                    "_" + str(update.message.message_id) + "_" + t
+                command = ["/usr/bin/ebook2cw", "-c", "DONOTSEPARATECHAPTERS",
+                           "-o", tempfilename, "-u"]
+                command.extend(["-w", str(w)])
+                if effectivewpm is not None:
+                    command.extend(["-e", str(effectivewpm)])
+                if extraspace is not None:
+                    command.extend(["-W", str(extraspace)])
+                if qrq is not None:
+                    command.extend(["-Q", str(qrq)])
+                command.extend(["-f", str(tone)])
+                if snr is not None:
+                    command.extend(["-N", str(snr)])
+                    # add fixed settings for filter and center freq
+                    command.extend(["-B", "500", "-C", "800"])
+                command.extend(["-t", t])
+                command.extend(["-a", update.message.from_user.first_name])
+                command.extend(["-T", str(ANSWER_WAVEFORM.index(waveform))])
 
-            context.bot.send_chat_action(
-                            chat_id=update.effective_message.chat_id,
-                            action=ChatAction.RECORD_AUDIO)
-            subprocess.run(command, input=bytes(text+"\n", encoding='utf8'))
-            # ebook2cw always add chapternumber and extension
-            tempfilename += "0000.mp3"
+                context.bot.send_chat_action(
+                                chat_id=update.effective_message.chat_id,
+                                action=ChatAction.RECORD_AUDIO)
+                subprocess.run(command, input=bytes(text+"\n", encoding='utf8'))
+                # ebook2cw always add chapternumber and extension
+                tempfilename += "0000.mp3"
 
-            context.bot.send_chat_action(
-                            chat_id=update.effective_message.chat_id,
-                            action=ChatAction.UPLOAD_AUDIO)
-            if format == "audio":
-                newtempfilename = "/tmp/" + \
-                    update.message.from_user.first_name + "_" + title + ".mp3"
-                rename(tempfilename, newtempfilename)
-                tempfilename = newtempfilename
-                update.message.reply_audio(
-                                    audio=open(tempfilename, "rb"),
-                                    title=title,
-                                    reply_markup=reply_markup)
-            else:  # default to voice format
-                update.message.reply_voice(
-                                    voice=open(tempfilename, "rb"),
-                                    caption=title,
-                                    reply_markup=reply_markup)
-            remove(tempfilename)
+                context.bot.send_chat_action(
+                                chat_id=update.effective_message.chat_id,
+                                action=ChatAction.UPLOAD_AUDIO)
+                if format == "audio":
+                    newtempfilename = "/tmp/" + \
+                        update.message.from_user.first_name + "_" + t + ".mp3"
+                    rename(tempfilename, newtempfilename)
+                    tempfilename = newtempfilename
+                    update.message.reply_audio(
+                                        audio=open(tempfilename, "rb"),
+                                        title=t,
+                                        reply_markup=reply_markup)
+                else:  # default to voice format
+                    update.message.reply_voice(
+                                        voice=open(tempfilename, "rb"),
+                                        caption=t,
+                                        reply_markup=reply_markup)
+                remove(tempfilename)
 
         def _do_qso(self, update: Update, context: CallbackContext, show_news):
             context.bot.send_chat_action(
@@ -952,8 +954,8 @@ class bot():
                     return self._set_wpm(update, context, context.args[0])
 
                 update.message.reply_text(
-                    "Current value is %iwpm\nWhat is your desired speed?" %
-                    context.user_data["wpm"],
+                    "Current value is %s wpm\nWhat is your desired speed?" %
+                    ', '.join(map(str, context.user_data["wpm"])),
                     reply_markup=self._keyboard_leave
                 )
                 return TYPING_WPM
@@ -967,17 +969,17 @@ class bot():
         def _set_wpm(self, update: Update, context: CallbackContext, value
                      ) -> None:
             try:
-                value = int(value)
+                value = list(map(int, value.split(',')))
             except ValueError:
                 update.message.reply_text(
                     "Hey ... this is not a number!!"
                 )
                 return None
             else:
-                if 1 <= value <= 100:
+                if all(1 <= s <= 100 for s in value):
                     context.user_data["wpm"] = value
                     update.message.reply_text(
-                        "Ok - speed is now %iwpm" % value,
+                        "Ok - speed is now %s wpm" % str(value),
                         reply_markup=self._keyboard
                     )
                     return MAIN
