@@ -635,8 +635,14 @@ class bot():
             # remove multiple spaces from message
             text = ' '.join(text.split())
 
+            if not '-wpm-' in title:
+                # add wpm to end of title if not user supplied
+                title = title + ' -wpm-wpm'
+
             for w in wpm:
-                t = "%s %iwpm" % (title, w)
+                # as title can be user supplied be very safe in substitution
+                t = title.replace('-wpm-', str(w))
+
                 tempfilename = "/tmp/" + \
                     safe_file_name(update.message.from_user.first_name) + \
                     "_" + str(update.message.message_id) + "_" + t
