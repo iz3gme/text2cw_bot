@@ -581,7 +581,7 @@ class bot():
             replymarkup = ReplyKeyboardMarkup(
                 [
                     [
-                        "Letters", "Digits", "Both", "All",
+                        "Letters", "Digits", "Both", "HST", "All",
                         KeyboardButton('/leave'),
                     ],
                 ],
@@ -862,6 +862,8 @@ class bot():
                 charset = string.digits
             elif value == "Both":
                 charset = string.ascii_uppercase + string.digits
+            elif value == "HST":
+                charset = string.ascii_uppercase + string.digits + ".,?/="
             elif value == "All":
                 charset = string.ascii_uppercase + string.digits + "-/.?'=,"
             else:
