@@ -53,6 +53,9 @@ from random import sample, choices, choice, seed
 import feedparser
 from time import strftime
 
+# helper functions to convert numbers to text
+from num2text import NumberToText, FindNumbers
+
 import logging
 
 # Enable logging
@@ -126,8 +129,8 @@ MAIN, TYPING_WPM, TYPING_SNR, TYPING_TONE, TYPING_TITLE, TYPING_FORMAT, \
     TYPING_DELMESSAGE, EFFECTIVEWPM, TYPING_EFFECTIVEWPM, TYPING_FEED, \
     TYPING_NEWS_TO_READ, TYPING_SHOW_NEWS, TYPING_QRQ, TYPING_EXTRA_SPACE, \
     TYPING_SHUFFLE, TYPING_NEWS_TIME, TYPING_SIMPLIFY, TYPING_NOACCENTS, \
-    TYPING_CHARSET, TYPING_GROUPS, TYPING_WAVEFORM \
-    = range(21)
+    TYPING_CHARSET, TYPING_GROUPS, TYPING_WAVEFORM, TYPING_CONVERTNUMBERS \
+    = range(22)
 
 ANSWER_FORMATS = ['voice', 'audio']
 
@@ -294,6 +297,16 @@ def translate_accents(s: str):
     return s.translate(str.maketrans("àèéìòùç", "aeeiouc"))
 
 
+def convert_numbers(s: str):
+    """ Add text translation to all numbers in string """
+
+    pos = list(FindNumbers(s))
+    pos.reverse()   # reverse positions list so we'll loop from the end
+    for start, end, snumber in pos:
+        s = s[:end] + ' ' + NumberToText(snumber) + ' ' + s[end:]
+    return s
+
+
 DEFAULTS = {
     'wpm': [25],
     'effectivewpm': None,
@@ -314,6 +327,7 @@ DEFAULTS = {
     'charset': string.ascii_uppercase + string.digits,
     'groups': 20,
     'waveform': ANSWER_WAVEFORM[0],
+    'convert numbers': False,
 }
 
 
@@ -399,6 +413,10 @@ class bot():
                 ['noaccents', 'Translate accented letters to simple ones',
                     self._cmd_noaccents, TYPING_NOACCENTS,
                     self._accept_noaccents],
+                ['convertnumbers', 'Add text translation to each number in text'
+                                   ' (only in text messages and news)',
+                    self._cmd_convertnumbers, TYPING_CONVERTNUMBERS,
+                    self._accept_convertnumbers],
                 ['help', 'ask for help message', self._cmd_help, None, None],
                 ['settings', 'show current settings', self._cmd_settings,
                     None, None],
@@ -716,7 +734,7 @@ class bot():
                     reply_markup=self._keyboard)
 
         def _do_read_news(self, update: Update, context: CallbackContext,
-                          feed, last_n, show_news):
+                          feed, last_n, show_news, convertnumbers):
             news_time = context.user_data['news time']
             context.bot.send_chat_action(
                             chat_id=update.effective_message.chat_id,
@@ -736,6 +754,8 @@ class bot():
                     # split message in 4096 chunks (telegram message limit)
                     for i in range(0, len(mtext), 4096):
                         update.message.reply_text(mtext[i:i+4096])
+                if convertnumbers:
+                    text = convert_numbers(text)
                 # to avoid possible thread deadlocks we cannot use run_async()
                 self._reply_with_audio(update, context, text,
                                        reply_markup=self._keyboard)
@@ -1569,6 +1589,52 @@ class bot():
                 )
                 return MAIN
 
+        def _cmd_convertnumbers(self, update: Update, context: CallbackContext
+                           ) -> None:
+            logging.debug('bot._cmd_convertnumbers')
+            if self._you_exist(update, context):
+                if len(context.args) > 0:
+                    return self._set_convertnumbers(update, context,
+                                               context.args[0])
+
+                update.message.reply_text(
+                    "\n".join([
+                        "I can add a text translation of each number in text",
+                        "this is expevially usefull in QRQ plain text exercises",
+                        "Previously you asked me to do this" \
+                        if context.user_data["convert numbers"] else \
+                        "Actually I dont translate numbers",
+                        "Do you want me to add numbers translation?"
+                    ]),
+                    reply_markup=self._keyboard_yesno
+                )
+                return TYPING_CONVERTNUMBERS
+
+        def _accept_convertnumbers(self, update: Update,
+                              context: CallbackContext) -> None:
+            logging.debug('bot._accept_convertnumners')
+            if self._you_exist(update, context):
+                return self._set_convertnumbers(update, context,
+                                           update.message.text)
+
+        def _set_convertnumbers(self, update: Update, context: CallbackContext,
+                           value) -> None:
+            value = value.lower()
+            if value not in ["yes", "no"]:
+                update.message.reply_text(
+                    "Please be serious, answer Yes or No"
+                )
+                return None
+            else:
+                value = value == "yes"
+                context.user_data["convert numbers"] = value
+                update.message.reply_text(
+                    "Ok - I'll add a text translation to numbers from now on" \
+                    if value else "OK - I'll leave your messages untouched",
+                    reply_markup=self._keyboard
+                )
+                return MAIN
+
         def _cmd_feed(self, update: Update, context: CallbackContext) -> None:
             logging.debug('bot._cmd_feed')
             if self._you_exist(update, context):
@@ -1757,10 +1823,11 @@ class bot():
                 feed = context.user_data["feed"]
                 last_n = context.user_data["news to read"]
                 show_news = context.user_data["show news"]
+                convertnumbers = context.user_data['convert numbers']
                 # do the real job in different thread
                 self._updater.dispatcher.run_async(
                                     self._do_read_news, update,
-                                    context, feed, last_n, show_news,
+                                    context, feed, last_n, show_news, convertnumbers,
                                     update=update)
 
                 return MAIN
@@ -1798,9 +1865,12 @@ class bot():
             if self._you_exist(update, context):
                 delmessage = context.user_data['delmessage']
                 shuffle = context.user_data['shuffle']
+                convertnumbers = context.user_data['convert numbers']
 
                 text = update.message.text
                 text = do_shuffle[shuffle](text)
+                if convertnumbers:
+                    text = convert_numbers(text)
                 # do the real job in differt thread
                 self._updater.dispatcher.run_async(
                                     self._reply_with_audio,
