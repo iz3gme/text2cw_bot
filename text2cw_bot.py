@@ -1600,7 +1600,7 @@ class bot():
                 update.message.reply_text(
                     "\n".join([
                         "I can add a text translation of each number in text",
-                        "this is expevially usefull in QRQ plain text exercises",
+                        "this is expecially usefull in QRQ plain text exercises",
                         "Previously you asked me to do this" \
                         if context.user_data["convert numbers"] else \
                         "Actually I dont translate numbers",
