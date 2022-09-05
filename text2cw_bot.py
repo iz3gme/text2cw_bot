@@ -622,6 +622,8 @@ class bot():
                         update.message.reply_text(
                             "I now support a new setting, I set it to default "
                             "for you (%s - %s)" % (key, str(value)))
+                # silently save user name for debugging
+                self._default(context.user_data, 'username', update.message.from_user.username)
                 return True
             else:
                 update.message.reply_text("Please use /start to begin")
