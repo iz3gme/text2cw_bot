@@ -1,0 +1,4 @@
+from telegram.ext import PicklePersistence
+pp = PicklePersistence(filename='text2cw_bot.data')
+for k in pp.get_user_data():
+  print(pp.user_data[k])
