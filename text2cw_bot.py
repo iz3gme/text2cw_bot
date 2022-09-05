@@ -1973,9 +1973,15 @@ if __name__ == "__main__":
     argp.add_argument(
             '-s', '--sleep', default=120, type=int,
             help='Sleep time before exiting (sec), 0 to sleep forever')
+    argp.add_argument(
+            '-d', '--debug', action='store_true',
+            help='Enable debug level log')
     argp.add_argument('token',
                       help='Bot token (ask BotFather)')
     args = argp.parse_args()
+    
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
 
     logging.info("Creating bot")
     abot = bot()
