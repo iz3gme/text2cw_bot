@@ -34,7 +34,7 @@ __version__ = "0.0.1"
 from telegram.ext import Updater, CommandHandler, ConversationHandler, \
     CallbackContext, MessageHandler, Filters, PicklePersistence
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove, \
-    KeyboardButton, ChatAction
+    KeyboardButton, ChatAction, ParseMode
 from telegram.ext.dispatcher import run_async
 from xhtml2pdf import pisa
 
@@ -948,7 +948,8 @@ class bot():
                 groups = context.user_data['groups']
 
                 text = " ".join(gen_groups(charset, groups))
-                update.message.reply_text(text)
+                # groups text is hidden by a spoiler
+                update.message.reply_text('||'+text+'||', parse_mode=ParseMode.MARKDOWN_V2)
                 # do the real job in differt thread
                 self._updater.dispatcher.run_async(
                                     self._reply_with_audio,
