@@ -1,4 +1,9 @@
 from telegram.ext import PicklePersistence
 pp = PicklePersistence(filename='text2cw_bot.data')
 for k in pp.get_user_data():
+  print(k)
   print(pp.user_data[k])
+  try:
+    print(pp.conversations["my_conversation"][(k,k)])
+  except:
+    print('---')
