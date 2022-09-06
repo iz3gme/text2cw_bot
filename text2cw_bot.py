@@ -802,7 +802,7 @@ class bot():
             remove(tempfilename)
 
         def _cmd_start(self, update: Update, context: CallbackContext) -> None:
-            logging.debug('bot._cmd_start')
+            logger.debug('bot._cmd_start')
 
             # silently set all settings to default at first connection
             try:
@@ -821,7 +821,7 @@ class bot():
             return MAIN
 
         def _cmd_stop(self, update: Update, context: CallbackContext) -> None:
-            logging.debug('bot._cmd_stop')
+            logger.debug('bot._cmd_stop')
             if self._you_exist(update, context):
                 context.user_data['exist'] = False
                 update.message.reply_text(
@@ -831,7 +831,7 @@ class bot():
                 return ConversationHandler.END
 
         def _cmd_help(self, update: Update, context: CallbackContext) -> None:
-            logging.debug('bot._cmd_help')
+            logger.debug('bot._cmd_help')
             if self._you_exist(update, context):
                 update.message.reply_text(
                     self._helptext,
@@ -843,7 +843,7 @@ class bot():
 
         def _cmd_settings(self, update: Update, context: CallbackContext
                           ) -> None:
-            logging.debug('bot._cmd_settings')
+            logger.debug('bot._cmd_settings')
             if self._you_exist(update, context):
                 text = "Your current settings are:\n" + "\n".join(
                                     ["%s\t%s" % (key,
@@ -856,7 +856,7 @@ class bot():
 
         def _cmd_charset(self, update: Update, context: CallbackContext
                          ) -> None:
-            logging.debug('bot._cmd_charset')
+            logger.debug('bot._cmd_charset')
             if self._you_exist(update, context):
                 if len(context.args) > 0:
                     return self._set_charset(update, context,
@@ -872,7 +872,7 @@ class bot():
 
         def _accept_charset(self, update: Update, context: CallbackContext
                             ) -> None:
-            logging.debug('bot._accept_charset')
+            logger.debug('bot._accept_charset')
             if self._you_exist(update, context):
                 return self._set_charset(update, context, update.message.text)
 
@@ -900,7 +900,7 @@ class bot():
 
         def _cmd_groups(self, update: Update, context: CallbackContext
                         ) -> None:
-            logging.debug('bot._cmd_groups')
+            logger.debug('bot._cmd_groups')
             if self._you_exist(update, context):
                 if len(context.args) > 0:
                     return self._set_groups(update, context, context.args[0])
@@ -915,7 +915,7 @@ class bot():
 
         def _accept_groups(self, update: Update, context: CallbackContext
                            ) -> None:
-            logging.debug('bot._accept_groups')
+            logger.debug('bot._accept_groups')
             if self._you_exist(update, context):
                 return self._set_groups(update, context, update.message.text)
 
@@ -978,7 +978,7 @@ class bot():
                                     groups, charset, exseed)
 
         def _cmd_wpm(self, update: Update, context: CallbackContext) -> None:
-            logging.debug('bot._cmd_wpm')
+            logger.debug('bot._cmd_wpm')
             if self._you_exist(update, context):
                 if len(context.args) > 0:
                     return self._set_wpm(update, context, context.args[0])
@@ -992,7 +992,7 @@ class bot():
 
         def _accept_wpm(self, update: Update, context: CallbackContext
                         ) -> None:
-            logging.debug('bot._accept_wpm')
+            logger.debug('bot._accept_wpm')
             if self._you_exist(update, context):
                 return self._set_wpm(update, context, update.message.text)
 
@@ -1020,7 +1020,7 @@ class bot():
 
         def _cmd_effectivewpm(self, update: Update, context: CallbackContext
                               ) -> None:
-            logging.debug('bot._cmd_effectivewpm')
+            logger.debug('bot._cmd_effectivewpm')
             if self._you_exist(update, context):
                 if len(context.args) > 0:
                     return self._set_effectivewpm(update, context,
@@ -1040,7 +1040,7 @@ class bot():
 
         def _accept_effectivewpm(self, update: Update, context: CallbackContext
                                  ) -> None:
-            logging.debug('bot._accept_effectivewpm')
+            logger.debug('bot._accept_effectivewpm')
             if self._you_exist(update, context):
                 return self._set_effectivewpm(update, context,
                                               update.message.text)
@@ -1079,7 +1079,7 @@ class bot():
 
         def _cmd_extra_space(self, update: Update, context: CallbackContext
                              ) -> None:
-            logging.debug('bot._cmd_extra_space')
+            logger.debug('bot._cmd_extra_space')
             if self._you_exist(update, context):
                 if len(context.args) > 0:
                     return self._set_extra_space(update, context,
@@ -1099,7 +1099,7 @@ class bot():
 
         def _accept_extra_space(self, update: Update, context: CallbackContext
                                 ) -> None:
-            logging.debug('bot._accept_extra_space')
+            logger.debug('bot._accept_extra_space')
             if self._you_exist(update, context):
                 return self._set_extra_space(update, context,
                                              update.message.text)
@@ -1139,7 +1139,7 @@ class bot():
                     )
 
         def _cmd_tone(self, update: Update, context: CallbackContext) -> None:
-            logging.debug('bot._cmd_tone')
+            logger.debug('bot._cmd_tone')
             if self._you_exist(update, context):
                 if len(context.args) > 0:
                     return self._set_tone(update, context, context.args[0])
@@ -1154,7 +1154,7 @@ class bot():
 
         def _accept_tone(self, update: Update, context: CallbackContext
                          ) -> None:
-            logging.debug('bot._accept_tone')
+            logger.debug('bot._accept_tone')
             if self._you_exist(update, context):
                 return self._set_tone(update, context, update.message.text)
 
@@ -1182,7 +1182,7 @@ class bot():
                     )
 
         def _cmd_snr(self, update: Update, context: CallbackContext) -> None:
-            logging.debug('bot._cmd_snr')
+            logger.debug('bot._cmd_snr')
             if self._you_exist(update, context):
                 if len(context.args) > 0:
                     return self._set_snr(update, context, context.args[0])
@@ -1202,7 +1202,7 @@ class bot():
 
         def _accept_snr(self, update: Update, context: CallbackContext
                         ) -> None:
-            logging.debug('bot._accept_snr')
+            logger.debug('bot._accept_snr')
             if self._you_exist(update, context):
                 return self._set_snr(update, context, update.message.text)
 
@@ -1237,7 +1237,7 @@ class bot():
                     )
 
         def _cmd_qrq(self, update: Update, context: CallbackContext) -> None:
-            logging.debug('bot._cmd_qrq')
+            logger.debug('bot._cmd_qrq')
             if self._you_exist(update, context):
                 if len(context.args) > 0:
                     return self._set_qrq(update, context, context.args[0])
@@ -1254,7 +1254,7 @@ class bot():
 
         def _accept_qrq(self, update: Update, context: CallbackContext
                         ) -> None:
-            logging.debug('bot._accept_qrq')
+            logger.debug('bot._accept_qrq')
             if self._you_exist(update, context):
                 return self._set_qrq(update, context, update.message.text)
 
@@ -1290,7 +1290,7 @@ class bot():
                     )
 
         def _cmd_title(self, update: Update, context: CallbackContext) -> None:
-            logging.debug('bot._cmd_title')
+            logger.debug('bot._cmd_title')
             if self._you_exist(update, context):
                 if len(context.args) > 0:
                     return self._set_title(update, context,
@@ -1305,7 +1305,7 @@ class bot():
 
         def _accept_title(self, update: Update, context: CallbackContext
                           ) -> None:
-            logging.debug('bot._accept_title')
+            logger.debug('bot._accept_title')
             if self._you_exist(update, context):
                 return self._set_title(update, context, update.message.text)
 
@@ -1334,7 +1334,7 @@ class bot():
 
         def _cmd_format(self, update: Update, context: CallbackContext
                         ) -> None:
-            logging.debug('bot._cmd_format')
+            logger.debug('bot._cmd_format')
             if self._you_exist(update, context):
                 if len(context.args) > 0:
                     return self._set_format(update, context, context.args[0])
@@ -1352,7 +1352,7 @@ class bot():
 
         def _accept_format(self, update: Update, context: CallbackContext
                            ) -> None:
-            logging.debug('bot._accept_format')
+            logger.debug('bot._accept_format')
             if self._you_exist(update, context):
                 return self._set_format(update, context, update.message.text)
 
@@ -1375,7 +1375,7 @@ class bot():
 
         def _cmd_waveform(self, update: Update, context: CallbackContext
                           ) -> None:
-            logging.debug('bot._cmd_waveform')
+            logger.debug('bot._cmd_waveform')
             if self._you_exist(update, context):
                 if len(context.args) > 0:
                     return self._set_waveform(update, context, context.args[0])
@@ -1393,7 +1393,7 @@ class bot():
 
         def _accept_waveform(self, update: Update, context: CallbackContext
                              ) -> None:
-            logging.debug('bot._accept_waveform')
+            logger.debug('bot._accept_waveform')
             if self._you_exist(update, context):
                 return self._set_waveform(update, context, update.message.text)
 
@@ -1416,7 +1416,7 @@ class bot():
 
         def _cmd_shuffle(self, update: Update, context: CallbackContext
                          ) -> None:
-            logging.debug('bot._cmd_shuffle')
+            logger.debug('bot._cmd_shuffle')
             if self._you_exist(update, context):
                 if len(context.args) > 0:
                     return self._set_shuffle(update, context, context.args[0])
@@ -1436,7 +1436,7 @@ class bot():
 
         def _accept_shuffle(self, update: Update, context: CallbackContext
                             ) -> None:
-            logging.debug('bot._accept_shuffle')
+            logger.debug('bot._accept_shuffle')
             if self._you_exist(update, context):
                 return self._set_shuffle(update, context, update.message.text)
 
@@ -1459,7 +1459,7 @@ class bot():
 
         def _cmd_delmessage(self, update: Update, context: CallbackContext
                             ) -> None:
-            logging.debug('bot._cmd_delmessage')
+            logger.debug('bot._cmd_delmessage')
             if self._you_exist(update, context):
                 if len(context.args) > 0:
                     return self._set_delmessage(update, context,
@@ -1478,7 +1478,7 @@ class bot():
 
         def _accept_delmessage(self, update: Update,
                                context: CallbackContext) -> None:
-            logging.debug('bot._accept_delmessage')
+            logger.debug('bot._accept_delmessage')
             if self._you_exist(update, context):
                 return self._set_delmessage(update, context,
                                             update.message.text)
@@ -1503,7 +1503,7 @@ class bot():
 
         def _cmd_simplify(self, update: Update, context: CallbackContext
                           ) -> None:
-            logging.debug('bot._cmd_simplify')
+            logger.debug('bot._cmd_simplify')
             if self._you_exist(update, context):
                 if len(context.args) > 0:
                     return self._set_simplify(update, context,
@@ -1523,7 +1523,7 @@ class bot():
 
         def _accept_simplify(self, update: Update,
                              context: CallbackContext) -> None:
-            logging.debug('bot._accept_simplify')
+            logger.debug('bot._accept_simplify')
             if self._you_exist(update, context):
                 return self._set_simplify(update, context,
                                           update.message.text)
@@ -1548,7 +1548,7 @@ class bot():
 
         def _cmd_noaccents(self, update: Update, context: CallbackContext
                            ) -> None:
-            logging.debug('bot._cmd_noaccents')
+            logger.debug('bot._cmd_noaccents')
             if self._you_exist(update, context):
                 if len(context.args) > 0:
                     return self._set_noaccents(update, context,
@@ -1568,7 +1568,7 @@ class bot():
 
         def _accept_noaccents(self, update: Update,
                               context: CallbackContext) -> None:
-            logging.debug('bot._accept_noaccents')
+            logger.debug('bot._accept_noaccents')
             if self._you_exist(update, context):
                 return self._set_noaccents(update, context,
                                            update.message.text)
@@ -1593,7 +1593,7 @@ class bot():
 
         def _cmd_convertnumbers(self, update: Update, context: CallbackContext
                            ) -> None:
-            logging.debug('bot._cmd_convertnumbers')
+            logger.debug('bot._cmd_convertnumbers')
             if self._you_exist(update, context):
                 if len(context.args) > 0:
                     return self._set_convertnumbers(update, context,
@@ -1614,7 +1614,7 @@ class bot():
 
         def _accept_convertnumbers(self, update: Update,
                               context: CallbackContext) -> None:
-            logging.debug('bot._accept_convertnumners')
+            logger.debug('bot._accept_convertnumners')
             if self._you_exist(update, context):
                 return self._set_convertnumbers(update, context,
                                            update.message.text)
@@ -1638,7 +1638,7 @@ class bot():
                 return MAIN
 
         def _cmd_feed(self, update: Update, context: CallbackContext) -> None:
-            logging.debug('bot._cmd_feed')
+            logger.debug('bot._cmd_feed')
             if self._you_exist(update, context):
                 if len(context.args) > 0:
                     return self._set_feed(update, context,
@@ -1655,7 +1655,7 @@ class bot():
 
         def _accept_feed(self, update: Update, context: CallbackContext
                          ) -> None:
-            logging.debug('bot._accept_feed')
+            logger.debug('bot._accept_feed')
             if self._you_exist(update, context):
                 return self._set_feed(update, context, update.message.text)
 
@@ -1679,7 +1679,7 @@ class bot():
 
         def _cmd_news_to_read(self, update: Update, context: CallbackContext
                               ) -> None:
-            logging.debug('bot._cmd_news_to_read')
+            logger.debug('bot._cmd_news_to_read')
             if self._you_exist(update, context):
                 if len(context.args) > 0:
                     return self._set_news_to_read(update, context,
@@ -1698,7 +1698,7 @@ class bot():
 
         def _accept_news_to_read(self, update: Update, context: CallbackContext
                                  ) -> None:
-            logging.debug('bot._accept_news_to_read')
+            logger.debug('bot._accept_news_to_read')
             if self._you_exist(update, context):
                 return self._set_news_to_read(update, context,
                                               update.message.text)
@@ -1729,7 +1729,7 @@ class bot():
 
         def _cmd_show_news(self, update: Update, context: CallbackContext
                            ) -> None:
-            logging.debug('bot._cmd_show_news')
+            logger.debug('bot._cmd_show_news')
             if self._you_exist(update, context):
                 if len(context.args) > 0:
                     return self._set_show_news(
@@ -1748,7 +1748,7 @@ class bot():
 
         def _accept_show_news(self, update: Update, context: CallbackContext
                               ) -> None:
-            logging.debug('bot._accept_show_news')
+            logger.debug('bot._accept_show_news')
             if self._you_exist(update, context):
                 return self._set_show_news(
                                     update, context, update.message.text)
@@ -1773,7 +1773,7 @@ class bot():
 
         def _cmd_news_time(self, update: Update, context: CallbackContext
                            ) -> None:
-            logging.debug('bot._cmd_news_time')
+            logger.debug('bot._cmd_news_time')
             if self._you_exist(update, context):
                 if len(context.args) > 0:
                     return self._set_news_time(
@@ -1795,7 +1795,7 @@ class bot():
 
         def _accept_news_time(self, update: Update, context: CallbackContext
                               ) -> None:
-            logging.debug('bot._accept_news_time')
+            logger.debug('bot._accept_news_time')
             if self._you_exist(update, context):
                 return self._set_news_time(update, context, update.message.text)
 
@@ -1820,7 +1820,7 @@ class bot():
 
         def _cmd_read_news(self, update: Update, context: CallbackContext
                            ) -> None:
-            logging.debug('bot._cmd_read_news')
+            logger.debug('bot._cmd_read_news')
             if self._you_exist(update, context):
                 feed = context.user_data["feed"]
                 last_n = context.user_data["news to read"]
@@ -1835,7 +1835,7 @@ class bot():
                 return MAIN
 
         def _cmd_qso(self, update: Update, context: CallbackContext) -> None:
-            logging.debug('bot._cmd_qso')
+            logger.debug('bot._cmd_qso')
             if self._you_exist(update, context):
                 show_news = context.user_data["show news"]
                 # do the real job in different thread
@@ -1846,7 +1846,7 @@ class bot():
                 return MAIN
 
         def _cmd_leave(self, update: Update, context: CallbackContext) -> None:
-            logging.debug('bot._cmd_leave')
+            logger.debug('bot._cmd_leave')
             if self._you_exist(update, context):
                 update.message.reply_text(
                     "Ok ... leaving value unchanged",
@@ -1856,7 +1856,7 @@ class bot():
 
         def _handle_unknown(self, update: Update, context: CallbackContext
                             ) -> None:
-            logging.debug('bot._handle_unknown')
+            logger.debug('bot._handle_unknown')
             if self._you_exist(update, context):
                 update.message.reply_text(
                     "Sorry, this is something I can't understand")
@@ -1982,16 +1982,17 @@ if __name__ == "__main__":
     
     if args.debug:
         logger.setLevel(logging.DEBUG)
+    logger.debug("Debug enabled")
 
-    logging.info("Creating bot")
+    logger.info("Creating bot")
     abot = bot()
     abot.start(args.token)
 
-    logging.info("Waiting for %i sec before exiting" % (args.sleep))
+    logger.info("Waiting for %i sec before exiting" % (args.sleep))
     if args.sleep != 0:
         time.sleep(args.sleep)
     else:
         abot.idle()
 
-    logging.info("Done")
+    logger.info("Done")
     abot.stop()
