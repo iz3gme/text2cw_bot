@@ -895,8 +895,8 @@ class bot():
             elif value == "All":
                 charset = string.ascii_uppercase + string.digits + "-/.?'=,"
             else:
-                # uppercase, remove duplicates and sort
-                charset = "".join(sorted(set(value.upper())))
+                # uppercase, remove duplicates, remove space and sort
+                charset = "".join(sorted(set(value.upper()))).replace(" ", "")
             context.user_data["charset"] = charset
             update.message.reply_text(
                         "Ok - the new charset is\n%s" % charset,
