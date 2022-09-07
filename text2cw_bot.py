@@ -36,6 +36,7 @@ from telegram.ext import Updater, CommandHandler, ConversationHandler, \
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove, \
     KeyboardButton, ChatAction, ParseMode
 from telegram.ext.dispatcher import run_async
+from telegram.utils.helpers import escape_markdown
 from xhtml2pdf import pisa
 
 import subprocess
@@ -725,7 +726,9 @@ class bot():
                     context.bot.send_chat_action(
                             chat_id=update.effective_message.chat_id,
                             action=ChatAction.TYPING)
-                    update.message.reply_text('||'+text+'||', parse_mode=ParseMode.MARKDOWN_V2)
+                    update.message.reply_text(
+                            '||'+escape_markdown(text, version=2)+'||',
+                            parse_mode=ParseMode.MARKDOWN_V2)
                 # to avoid possible thread deadlocks we cannot use run_async()
                 self._reply_with_audio(update, context, text,
                                        reply_markup=self._keyboard)
@@ -756,7 +759,7 @@ class bot():
                     # split message in 4096 chunks (telegram message limit)
                     for i in range(0, len(mtext), 4096):
                         update.message.reply_text(
-                            '||'+mtext[i:i+4096]+'||',
+                            '||'+escape_markdown(mtext[i:i+4096], version=2)+'||',
                             parse_mode=ParseMode.MARKDOWN_V2
                         )
                 if convertnumbers:
@@ -952,7 +955,7 @@ class bot():
 
                 text = " ".join(gen_groups(charset, groups))
                 # groups text is hidden by a spoiler
-                update.message.reply_text('||'+text+'||', parse_mode=ParseMode.MARKDOWN_V2)
+                update.message.reply_text('||'+escape_markdown(text, version=2)+'||', parse_mode=ParseMode.MARKDOWN_V2)
                 # do the real job in differt thread
                 self._updater.dispatcher.run_async(
                                     self._reply_with_audio,
