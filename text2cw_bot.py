@@ -725,7 +725,7 @@ class bot():
                     context.bot.send_chat_action(
                             chat_id=update.effective_message.chat_id,
                             action=ChatAction.TYPING)
-                    update.message.reply_text(text)
+                    update.message.reply_text('||'+text+'||', parse_mode=ParseMode.MARKDOWN_V2)
                 # to avoid possible thread deadlocks we cannot use run_async()
                 self._reply_with_audio(update, context, text,
                                        reply_markup=self._keyboard)
@@ -755,7 +755,10 @@ class bot():
                     mtext = re.sub('(<..>)', r'\1\n', text)
                     # split message in 4096 chunks (telegram message limit)
                     for i in range(0, len(mtext), 4096):
-                        update.message.reply_text(mtext[i:i+4096])
+                        update.message.reply_text(
+                            '||'+mtext[i:i+4096]+'||',
+                            parse_mode=ParseMode.MARKDOWN_V2
+                        )
                 if convertnumbers:
                     text = convert_numbers(text)
                 # to avoid possible thread deadlocks we cannot use run_async()
