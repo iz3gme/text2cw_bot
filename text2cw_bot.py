@@ -625,6 +625,9 @@ class bot():
                             "for you (%s - %s)" % (key, str(value)))
                 # silently save user name for debugging
                 self._default(context.user_data, 'username', update.message.from_user.name)
+                # try to update username if we had None previously
+                if update.message.from_user.name is not None and context.user_data['username'] is None:
+                    context.user_data['username'] = update.message.from_user.name
                 return True
             else:
                 update.message.reply_text("Please use /start to begin")
