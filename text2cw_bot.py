@@ -1305,7 +1305,9 @@ class bot():
 
                 update.message.reply_text(
                     "Current title is %s\n"
-                    "What is your desired title?" % context.user_data["title"],
+                    "What is your desired title?\n"
+                    "You can insert -wpm- in title to be replaced with "
+                    "actual speed or I'll place it at the end" % context.user_data["title"],
                     reply_markup=self._keyboard_leave
                 )
                 return TYPING_TITLE
