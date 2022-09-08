@@ -994,7 +994,9 @@ class bot():
                     return self._set_wpm(update, context, context.args[0])
 
                 update.message.reply_text(
-                    "Current value is %s wpm\nWhat is your desired speed?" %
+                    "Current value is %s wpm\nWhat is your desired speed?\n"
+                    "You can specify a single value or a comma separated list "
+                    "(eg. 15,20,30) so I'll send separate audio for each" %
                     ', '.join(map(str, context.user_data["wpm"])),
                     reply_markup=self._keyboard_leave
                 )
