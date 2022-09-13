@@ -130,7 +130,8 @@ MAIN, TYPING_WPM, TYPING_SNR, TYPING_TONE, TYPING_TITLE, TYPING_FORMAT, \
     TYPING_DELMESSAGE, EFFECTIVEWPM, TYPING_EFFECTIVEWPM, TYPING_FEED, \
     TYPING_NEWS_TO_READ, TYPING_SHOW_NEWS, TYPING_QRQ, TYPING_EXTRA_SPACE, \
     TYPING_SHUFFLE, TYPING_NEWS_TIME, TYPING_SIMPLIFY, TYPING_NOACCENTS, \
-    TYPING_CHARSET, TYPING_GROUPS, TYPING_WAVEFORM, TYPING_CONVERTNUMBERS \
+    TYPING_CHARSET, TYPING_GROUPS, TYPING_WAVEFORM, TYPING_CONVERTNUMBERS, \
+    TYPING_GROUPS_PREFIX \
     = range(22)
 
 ANSWER_FORMATS = ['voice', 'audio']
@@ -329,6 +330,7 @@ DEFAULTS = {
     'groups': 20,
     'waveform': ANSWER_WAVEFORM[0],
     'convert numbers': False,
+    'groups prefix': True,
 }
 
 
@@ -367,6 +369,10 @@ class bot():
                     'Change the number of groups to send',
                     self._cmd_groups, TYPING_GROUPS,
                     self._accept_groups],
+                ['groups_prefix',
+                    'Add a VVV= prefix to groups',
+                    self._cmd_groups_prefix, TYPING_GROUPS_PREFIX,
+                    self._accept_groups_prefix],
                 ['send_groups',
                     "Generate and send a sequence of random groups",
                     self._send_groups, None, None],
@@ -784,9 +790,11 @@ class bot():
             wpm = context.user_data['wpm']
             effectivewpm = context.user_data['effectivewpm']
             extraspace = context.user_data['extra space']
+            prefix = context.user_data['groups prefix']
 
             for exercise in groups:
-                text = "VVV= " + " ".join(exercise)
+                text = "VVV= " if prefix else ""
+                text += " ".join(exercise)
                 self._reply_with_audio(
                                 update,
                                 context,
@@ -907,6 +915,51 @@ class bot():
                     )
             return MAIN
 
+        def _cmd_groups_prefix(self, update: Update, context: CallbackContext
+                            ) -> None:
+            logger.debug('bot._cmd_groups_prefix')
+            if self._you_exist(update, context):
+                if len(context.args) > 0:
+                    return self._set_groups_prefix(update, context,
+                                                context.args[0])
+
+                update.message.reply_text(
+                    "\n".join([
+                        "I can send a VVV= prefix at groups start",
+                        "I actually send it" \
+                        if context.user_data["groups prefix"] else \
+                        "Actually I dont dont send it",
+                        "Do you want the prefix in future exercises?"
+                    ]),
+                    reply_markup=self._keyboard_yesno
+                )
+                return TYPING_GROUPS_PREFIX
+
+        def _accept_groups_prefix(self, update: Update,
+                               context: CallbackContext) -> None:
+            logger.debug('bot._accept_groups_prefix')
+            if self._you_exist(update, context):
+                return self._set_groups_prefix(update, context,
+                                            update.message.text)
+
+        def _set_groups_prefix(self, update: Update, context: CallbackContext,
+                            value) -> None:
+            value = value.lower()
+            if value not in ["yes", "no"]:
+                update.message.reply_text(
+                    "Please be serious, answer Yes or No"
+                )
+                return None
+            else:
+                value = value == "yes"
+                context.user_data["groups prefix"] = value
+                update.message.reply_text(
+                    "Ok - I'll send prefix from now on" \
+                    if value else "OK - I'll not send prefix",
+                    reply_markup=self._keyboard
+                )
+                return MAIN
+
         def _cmd_groups(self, update: Update, context: CallbackContext
                         ) -> None:
             logger.debug('bot._cmd_groups')
@@ -955,8 +1008,10 @@ class bot():
             if self._you_exist(update, context):
                 charset = context.user_data['charset']
                 groups = context.user_data['groups']
+                prefix = context.user_data['groups prefix']
 
-                text = " ".join(gen_groups(charset, groups))
+                text = "VVV= " if prefix else ""
+                text += " ".join(gen_groups(charset, groups))
                 # groups text is hidden by a spoiler
                 update.message.reply_text('||'+escape_markdown(text, version=2)+'||', parse_mode=ParseMode.MARKDOWN_V2)
                 # do the real job in differt thread
