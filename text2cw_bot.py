@@ -339,7 +339,6 @@ class bot():
         def __init__(self):
             super(bot, self).__init__()
             self._updater = None
-            self._chat_set = set()
 
         @property
         def _commands(self):
