@@ -57,6 +57,9 @@ from time import strftime
 # helper functions to convert numbers to text
 from num2text import NumberToText, FindNumbers
 
+# helper word dictionary class
+from parole import dizionario
+
 import logging
 
 # Enable logging
@@ -131,8 +134,8 @@ MAIN, TYPING_WPM, TYPING_SNR, TYPING_TONE, TYPING_TITLE, TYPING_FORMAT, \
     TYPING_NEWS_TO_READ, TYPING_SHOW_NEWS, TYPING_QRQ, TYPING_EXTRA_SPACE, \
     TYPING_SHUFFLE, TYPING_NEWS_TIME, TYPING_SIMPLIFY, TYPING_NOACCENTS, \
     TYPING_CHARSET, TYPING_GROUPS, TYPING_WAVEFORM, TYPING_CONVERTNUMBERS, \
-    TYPING_GROUPS_PREFIX \
-    = range(23)
+    TYPING_GROUPS_PREFIX, TYPING_WORD_MAX \
+    = range(24)
 
 ANSWER_FORMATS = ['voice', 'audio']
 
@@ -331,6 +334,7 @@ DEFAULTS = {
     'waveform': ANSWER_WAVEFORM[0],
     'convert numbers': False,
     'groups prefix': True,
+    'word max': 10,
 }
 
 
@@ -383,6 +387,12 @@ class bot():
                     self._groups_exercise, None, None],
                 ['wpm', 'Set speed in words per minute', self._cmd_wpm,
                     TYPING_WPM, self._accept_wpm],
+                ['send_word',
+                    'Pickup a random word from (italian) dictionary using only current'
+                    ' charset and send it',
+                    self._send_word, None, None],
+                ['word_max', 'Set max word lenght', self._cmd_word_max,
+                    TYPING_WORD_MAX, self._accept_word_max],
                 ['tone', 'Set tone frequency in Hertz', self._cmd_tone,
                     TYPING_TONE, self._accept_tone],
                 ['waveform', 'Set waveform', self._cmd_waveform,
@@ -1012,6 +1022,102 @@ class bot():
                 text = "VVV= " if prefix else ""
                 text += " ".join(gen_groups(charset, groups))
                 # groups text is hidden by a spoiler
+                update.message.reply_text('||'+escape_markdown(text, version=2)+'||', parse_mode=ParseMode.MARKDOWN_V2)
+                # do the real job in differt thread
+                self._updater.dispatcher.run_async(
+                                    self._reply_with_audio,
+                                    update,
+                                    context,
+                                    text,
+                                    update=update)
+
+        def _cmd_word_max(self, update: Update, context: CallbackContext
+                        ) -> None:
+            logger.debug('bot._cmd_word_max')
+            if self._you_exist(update, context):
+                if len(context.args) > 0:
+                    return self._set_word_max(update, context, context.args[0])
+
+                update.message.reply_text(
+                    "Current value is %i\n"
+                    "Which is the maximum lenght of word you want?"
+                    " (Use NONE for no limit)" %
+                    context.user_data["word max"],
+                    reply_markup=self._keyboard_none
+                )
+                return TYPING_WORD_MAX
+
+        def _accept_word_max(self, update: Update, context: CallbackContext
+                           ) -> None:
+            logger.debug('bot._accept_word_max')
+            if self._you_exist(update, context):
+                return self._set_word_max(update, context, update.message.text)
+
+        def _set_word_max(self, update: Update, context: CallbackContext, value
+                        ) -> None:
+            try:
+                value = int(value)
+            except ValueError:
+                # not a number, may be none?
+                if value.lower() == 'none':
+                    context.user_data["word max"] = None
+                    update.message.reply_text(
+                        "Ok - I'll send words of any lenght",
+                        reply_markup=self._keyboard
+                    )
+                    return MAIN
+                else:
+                    update.message.reply_text(
+                        "Hey ... this is not a number!!"
+                    )
+                return None
+            else:
+                if 3 <= value:
+                    context.user_data["word max"] = value
+                    update.message.reply_text(
+                        "Ok - max word lenght is now %i" % value,
+                        reply_markup=self._keyboard
+                    )
+                    return MAIN
+                else:
+                    update.message.reply_text(
+                        "Sorry - Max word lenght must be greater then 3\n"
+                        "Try again"
+                    )
+
+        def _send_word(self, update: Update, context: CallbackContext
+                         ) -> None:
+            if self._you_exist(update, context):
+                charset = context.user_data['charset']
+                maxl = context.user_data['word max']
+                
+                try:
+                    d = self._dictionary
+                except AttributeError:
+                    # try loading dictionary
+                    try:
+                        self._dictionary = dizionario()
+                    except Exception as e:
+                        logger.error(msg="Exception loading dictionary file:",
+                                     exc_info=e)
+                        # notify the user
+                        update.message.reply_text(
+                            "I'm sorry but I could not find the dictionary, please try again\n"
+                            "If it happens again send a message to my creator @IZ3GME "
+                            "to fix it")
+                        return None
+                    d = self._dictionary
+                
+                try:
+                    text = choice(d.anagrammi(charset, minl=2, maxl=maxl))
+                except IndexError:
+                    # no word found, let the user know
+                    update.message.reply_text(
+                        "I'm sorry but I could not find any word\n"
+                        "Try with more letters in charset and with greater max lenght")
+                    return None
+
+                # text is hidden by a spoiler
                 update.message.reply_text('||'+escape_markdown(text, version=2)+'||', parse_mode=ParseMode.MARKDOWN_V2)
                 # do the real job in differt thread
                 self._updater.dispatcher.run_async(
