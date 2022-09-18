@@ -2072,7 +2072,8 @@ class bot():
 
         def start(self, token):
             pp = PicklePersistence(filename='text2cw_bot.data')
-            self._updater = Updater(token, persistence=pp, use_context=True)
+            self._updater = Updater(token, persistence=pp, use_context=True,
+                                    request_kwargs={'read_timeout': 10,})
 
             # tell BotFather my list of commands
             commands = [[command, description]
