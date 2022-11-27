@@ -71,13 +71,15 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def get_feed(feed_url, last_n=1, news_time=True):
+def get_feed(feed_url, last_n=1, news_time=True, title_filter=None):
     '''
     Read RSS feed and format a CW message with lates news
 
         Parameters:
             feed_url (str): full url of rss feed
             last_n   (int): number of news to get, 0 for all
+            title_filter (str): filter only news with given string in title
+                                case insensitive
 
         Returns:
             cw_message (str): resulting message or None if any error occours
@@ -92,17 +94,21 @@ def get_feed(feed_url, last_n=1, news_time=True):
             title = getattr(e, "title", None)
             summary = getattr(e, "summary", None)
 
-            entry = list()
-            if published and news_time:
-                k = published
-                entry.append(strftime("%d/%m/%Y %H:%M", published))
-            else:
-                k = i
-            if title:
-                entry.append(title)
-            if summary:
-                entry.append(summary)
-            news[k] = entry
+            if title_filter is None or title is None or title_filter.lower() in title.lower():
+                entry = list()
+                if published and news_time:
+                    k = published
+                    entry.append(strftime("%d/%m/%Y %H:%M", published))
+                else:
+                    k = i
+                if title:
+                    entry.append(title)
+                if summary:
+                    # remove any <a href> tag from text
+                    # not a perfect re but works
+                    summary = re.sub(r'<a .*>.*</a>', '', summary)
+                    entry.append(summary)
+                news[k] = entry
         articles = [" <BT> ".join(v)
                     for k, v in sorted(news.items())[-last_n:]]
 
@@ -134,8 +140,8 @@ MAIN, TYPING_WPM, TYPING_SNR, TYPING_TONE, TYPING_TITLE, TYPING_FORMAT, \
     TYPING_NEWS_TO_READ, TYPING_SHOW_NEWS, TYPING_QRQ, TYPING_EXTRA_SPACE, \
     TYPING_SHUFFLE, TYPING_NEWS_TIME, TYPING_SIMPLIFY, TYPING_NOACCENTS, \
     TYPING_CHARSET, TYPING_GROUPS, TYPING_WAVEFORM, TYPING_CONVERTNUMBERS, \
-    TYPING_GROUPS_PREFIX, TYPING_WORD_MAX \
-    = range(24)
+    TYPING_GROUPS_PREFIX, TYPING_WORD_MAX, TYPING_SIGN \
+    = range(25)
 
 ANSWER_FORMATS = ['voice', 'audio']
 
@@ -144,6 +150,11 @@ ANSWER_SHUFFLES = ['nothing', 'words', 'letters', 'both']
 
 
 ANSWER_WAVEFORM = ['sine', 'sawtooth', 'square']
+
+
+ANSWER_SIGNS = ['Ariete', 'Toro', 'Gemelli', 'Cancro', 'Leone', 'Vergine',
+                'Bilancia', 'Scorpione', 'Sagittario', 'Capricorno', 'Aquario',
+                'Pesci']
 
 
 def shuffle_nothing(text):
@@ -188,7 +199,7 @@ def gen_groups(charset: str, k: int):
                 seq[i+2] = choice(charset)
         seq = "".join(seq)
     # split in groups of 5
-    groups = [seq[i:i+5] for i in range(0, len(seq), 5) ]
+    groups = [seq[i:i+5] for i in range(0, len(seq), 5)]
     return groups
 
 
@@ -311,6 +322,8 @@ def convert_numbers(s: str):
         s = s[:end] + ' ' + NumberToText(snumber) + ' ' + s[end:]
     return s
 
+NEWS_FEED = 'https://www.ansa.it/sito/ansait_rss.xml'
+HOROSCOPE_FEED = 'http://it.horoscopofree.com/rss/horoscopofree-it.rss'
 
 DEFAULTS = {
     'wpm': [25],
@@ -320,7 +333,8 @@ DEFAULTS = {
     'title': 'CW Text',
     'format': ANSWER_FORMATS[0],
     'delmessage': False,
-    'feed': "https://www.ansa.it/sito/ansait_rss.xml",
+    'feed': NEWS_FEED,
+    'horoscope feed': HOROSCOPE_FEED,
     'news to read': 5,
     'show news': False,
     'qrq': None,
@@ -353,7 +367,8 @@ class bot():
                     self._cmd_news_to_read, TYPING_NEWS_TO_READ,
                     self._accept_news_to_read],
                 ['show_news',
-                    'Tell me if you want to have the news and QSO in clear text also',
+                    'Tell me if you want to have the news and QSO in clear'
+                    ' text also',
                     self._cmd_show_news, TYPING_SHOW_NEWS,
                     self._accept_show_news],
                 ['news_time',
@@ -380,16 +395,17 @@ class bot():
                     "Generate and send a sequence of random groups",
                     self._send_groups, None, None],
                 ['groups_exercise',
-                    'Generate three full group exercises using current settings'
-                    ' and send both cw audio and a printable PDF; if you want'
-                    ' a repeatable exercise add a keyword to the command, same'
-                    ' keyword same exercise, eg. /groups_exercise mykey1',
+                    'Generate three full group exercises using current'
+                    ' settings and send both cw audio and a printable PDF;'
+                    ' if you want a repeatable exercise add a keyword to the'
+                    ' command, same keyword same exercise,'
+                    ' eg. /groups_exercise mykey1',
                     self._groups_exercise, None, None],
                 ['wpm', 'Set speed in words per minute', self._cmd_wpm,
                     TYPING_WPM, self._accept_wpm],
                 ['send_word',
-                    'Pickup a random word from (italian) dictionary using only current'
-                    ' charset and send it',
+                    'Pickup a random word from (italian) dictionary using'
+                    ' only current charset and send it',
                     self._send_word, None, None],
                 ['word_max', 'Set max word lenght', self._cmd_word_max,
                     TYPING_WORD_MAX, self._accept_word_max],
@@ -429,13 +445,16 @@ class bot():
                 ['noaccents', 'Translate accented letters to simple ones',
                     self._cmd_noaccents, TYPING_NOACCENTS,
                     self._accept_noaccents],
-                ['convertnumbers', 'Add text translation to each number in text'
-                                   ' (only in text messages and news)',
+                ['convertnumbers', 'Add text translation to each number in'
+                                   ' text (only in text messages and news)',
                     self._cmd_convertnumbers, TYPING_CONVERTNUMBERS,
                     self._accept_convertnumbers],
                 ['help', 'ask for help message', self._cmd_help, None, None],
                 ['settings', 'show current settings', self._cmd_settings,
                     None, None],
+                ['horoscope', 'Read horoscope (in italian)',
+                    self._cmd_horoscope, TYPING_SIGN,
+                    self._accept_sign],
             ]
 
         @property
@@ -525,6 +544,22 @@ class bot():
                 [
                     [
                         KeyboardButton(i) for i in ANSWER_SHUFFLES
+                    ],
+                    [
+                        KeyboardButton('/leave'),
+                    ],
+                ],
+                resize_keyboard=True,
+                one_time_keyboard=False
+            )
+            return replymarkup
+
+        @property
+        def _keyboard_signs(self):
+            replymarkup = ReplyKeyboardMarkup(
+                [
+                    [
+                        KeyboardButton(i) for i in ANSWER_SIGNS
                     ],
                     [
                         KeyboardButton('/leave'),
@@ -639,7 +674,8 @@ class bot():
                             "I now support a new setting, I set it to default "
                             "for you (%s - %s)" % (key, str(value)))
                 # silently save user name for debugging
-                self._default(context.user_data, 'username', update.message.from_user.name)
+                self._default(context.user_data, 'username',
+                              update.message.from_user.name)
                 # try to update username if we had None previously
                 if update.message.from_user.name is not None and context.user_data['username'] is None:
                     context.user_data['username'] = update.message.from_user.name
@@ -674,7 +710,7 @@ class bot():
             # remove multiple spaces from message
             text = ' '.join(text.split())
 
-            if not '-wpm-' in title:
+            if '-wpm-' not in title:
                 # add wpm to end of title if not user supplied
                 title = title + ' -wpm-wpm'
 
@@ -706,7 +742,8 @@ class bot():
                 context.bot.send_chat_action(
                                 chat_id=update.effective_message.chat_id,
                                 action=ChatAction.RECORD_AUDIO)
-                subprocess.run(command, input=bytes(text+"\n", encoding='utf8'))
+                subprocess.run(command,
+                               input=bytes(text+"\n", encoding='utf8'))
                 # ebook2cw always add chapternumber and extension
                 tempfilename += "0000.mp3"
 
@@ -735,7 +772,8 @@ class bot():
                             action=ChatAction.TYPING)
             try:
                 command = ["/usr/bin/QSO"]
-                output = subprocess.run(command, capture_output=True, text=True)
+                output = subprocess.run(command,
+                                        capture_output=True, text=True)
                 text = output.stdout
             except:
                 text = None
@@ -757,14 +795,15 @@ class bot():
                     reply_markup=self._keyboard)
 
         def _do_read_news(self, update: Update, context: CallbackContext,
-                          feed, last_n, show_news, convertnumbers):
+                          feed, last_n, show_news, convertnumbers,
+                          title_filter=None):
             news_time = context.user_data['news time']
             context.bot.send_chat_action(
                             chat_id=update.effective_message.chat_id,
                             action=ChatAction.TYPING)
             last_n = last_n if last_n != 'all' else 0
             try:
-                text = get_feed(feed, last_n, news_time)
+                text = get_feed(feed, last_n, news_time, title_filter)
             except:
                 text = None
             if text:
@@ -925,12 +964,12 @@ class bot():
             return MAIN
 
         def _cmd_groups_prefix(self, update: Update, context: CallbackContext
-                            ) -> None:
+                               ) -> None:
             logger.debug('bot._cmd_groups_prefix')
             if self._you_exist(update, context):
                 if len(context.args) > 0:
                     return self._set_groups_prefix(update, context,
-                                                context.args[0])
+                                                   context.args[0])
 
                 update.message.reply_text(
                     "\n".join([
@@ -945,14 +984,14 @@ class bot():
                 return TYPING_GROUPS_PREFIX
 
         def _accept_groups_prefix(self, update: Update,
-                               context: CallbackContext) -> None:
+                                  context: CallbackContext) -> None:
             logger.debug('bot._accept_groups_prefix')
             if self._you_exist(update, context):
                 return self._set_groups_prefix(update, context,
-                                            update.message.text)
+                                               update.message.text)
 
         def _set_groups_prefix(self, update: Update, context: CallbackContext,
-                            value) -> None:
+                               value) -> None:
             value = value.lower()
             if value not in ["yes", "no"]:
                 update.message.reply_text(
@@ -1022,7 +1061,10 @@ class bot():
                 text = "VVV= " if prefix else ""
                 text += " ".join(gen_groups(charset, groups))
                 # groups text is hidden by a spoiler
-                update.message.reply_text('||'+escape_markdown(text, version=2)+'||', parse_mode=ParseMode.MARKDOWN_V2)
+                update.message.reply_text('||'
+                                          + escape_markdown(text, version=2)
+                                          + '||',
+                                          parse_mode=ParseMode.MARKDOWN_V2)
                 # do the real job in differt thread
                 self._updater.dispatcher.run_async(
                                     self._reply_with_audio,
@@ -1032,7 +1074,7 @@ class bot():
                                     update=update)
 
         def _cmd_word_max(self, update: Update, context: CallbackContext
-                        ) -> None:
+                          ) -> None:
             logger.debug('bot._cmd_word_max')
             if self._you_exist(update, context):
                 if len(context.args) > 0:
@@ -1048,13 +1090,13 @@ class bot():
                 return TYPING_WORD_MAX
 
         def _accept_word_max(self, update: Update, context: CallbackContext
-                           ) -> None:
+                             ) -> None:
             logger.debug('bot._accept_word_max')
             if self._you_exist(update, context):
                 return self._set_word_max(update, context, update.message.text)
 
         def _set_word_max(self, update: Update, context: CallbackContext, value
-                        ) -> None:
+                          ) -> None:
             try:
                 value = int(value)
             except ValueError:
@@ -1085,12 +1127,53 @@ class bot():
                         "Try again"
                     )
 
-        def _send_word(self, update: Update, context: CallbackContext
+        def _cmd_horoscope(self, update: Update, context: CallbackContext
+                           ) -> None:
+            logger.debug('bot._cmd_horoscope')
+            if self._you_exist(update, context):
+                if len(context.args) > 0:
+                    return self._set_sign(update, context, context.args[0])
+
+                update.message.reply_text(
+                    "Please choose your sign",
+                    reply_markup=self._keyboard_signs
+                )
+                return TYPING_SIGN
+
+        def _accept_sign(self, update: Update, context: CallbackContext
                          ) -> None:
+            logger.debug('bot._accept_sign')
+            if self._you_exist(update, context):
+                return self._set_sign(update, context, update.message.text)
+
+        def _set_sign(self, update: Update, context: CallbackContext, value
+                      ) -> None:
+            # value = value.lower()
+            if value not in ANSWER_SIGNS:
+                update.message.reply_text(
+                    "Hey ... this is not a sign!!\n"
+                    "Please choose between " + ', '.join(ANSWER_SIGNS)
+                )
+                return None
+            else:
+                feed = context.user_data["horoscope feed"]
+                last_n = 1
+                show_news = context.user_data["show news"]
+                convertnumbers = context.user_data['convert numbers']
+                sign = value
+                # do the real job in different thread
+                self._updater.dispatcher.run_async(
+                                    self._do_read_news, update,
+                                    context, feed, last_n, show_news,
+                                    convertnumbers, sign, update=update)
+                return MAIN
+
+        def _send_word(self, update: Update, context: CallbackContext
+                       ) -> None:
             if self._you_exist(update, context):
                 charset = context.user_data['charset']
                 maxl = context.user_data['word max']
-                
+
                 try:
                     d = self._dictionary
                 except AttributeError:
@@ -1102,23 +1185,28 @@ class bot():
                                      exc_info=e)
                         # notify the user
                         update.message.reply_text(
-                            "I'm sorry but I could not find the dictionary, please try again\n"
-                            "If it happens again send a message to my creator @IZ3GME "
-                            "to fix it")
+                            "I'm sorry but I could not find the dictionary,"
+                            " please try again\n"
+                            "If it happens again send a message to my creator"
+                            " @IZ3GME to fix it")
                         return None
                     d = self._dictionary
-                
+
                 try:
                     text = choice(d.anagrammi(charset, minl=2, maxl=maxl))
                 except IndexError:
                     # no word found, let the user know
                     update.message.reply_text(
                         "I'm sorry but I could not find any word\n"
-                        "Try with more letters in charset and with greater max lenght")
+                        "Try with more letters in charset and with greater max"
+                        " lenght")
                     return None
 
                 # text is hidden by a spoiler
-                update.message.reply_text('||'+escape_markdown(text, version=2)+'||', parse_mode=ParseMode.MARKDOWN_V2)
+                update.message.reply_text('||'
+                                          + escape_markdown(text, version=2)
+                                          + '||',
+                                          parse_mode=ParseMode.MARKDOWN_V2)
                 # do the real job in differt thread
                 self._updater.dispatcher.run_async(
                                     self._reply_with_audio,
@@ -1472,7 +1560,8 @@ class bot():
                     "Current title is %s\n"
                     "What is your desired title?\n"
                     "You can insert -wpm- in title to be replaced with "
-                    "actual speed or I'll place it at the end" % context.user_data["title"],
+                    "actual speed or I'll place it at"
+                    " the end" % context.user_data["title"],
                     reply_markup=self._keyboard_leave
                 )
                 return TYPING_TITLE
@@ -1556,7 +1645,8 @@ class bot():
 
                 update.message.reply_text(
                     "\n".join([
-                        "Current waveform is %s" % context.user_data["waveform"],
+                        "Current waveform is"
+                        " %s" % context.user_data["waveform"],
                         "I can generate different waveform " + ' or '.join(
                                                     ANSWER_WAVEFORM),
                         "Which one you prefere?"
@@ -1766,12 +1856,12 @@ class bot():
                 return MAIN
 
         def _cmd_convertnumbers(self, update: Update, context: CallbackContext
-                           ) -> None:
+                                ) -> None:
             logger.debug('bot._cmd_convertnumbers')
             if self._you_exist(update, context):
                 if len(context.args) > 0:
                     return self._set_convertnumbers(update, context,
-                                               context.args[0])
+                                                    context.args[0])
 
                 update.message.reply_text(
                     "\n".join([
@@ -1787,14 +1877,14 @@ class bot():
                 return TYPING_CONVERTNUMBERS
 
         def _accept_convertnumbers(self, update: Update,
-                              context: CallbackContext) -> None:
+                                   context: CallbackContext) -> None:
             logger.debug('bot._accept_convertnumners')
             if self._you_exist(update, context):
                 return self._set_convertnumbers(update, context,
-                                           update.message.text)
+                                                update.message.text)
 
         def _set_convertnumbers(self, update: Update, context: CallbackContext,
-                           value) -> None:
+                                value) -> None:
             value = value.lower()
             if value not in ["yes", "no"]:
                 update.message.reply_text(
@@ -1971,7 +2061,8 @@ class bot():
                               ) -> None:
             logger.debug('bot._accept_news_time')
             if self._you_exist(update, context):
-                return self._set_news_time(update, context, update.message.text)
+                return self._set_news_time(update, context,
+                                           update.message.text)
 
         def _set_news_time(self, update: Update, context: CallbackContext,
                            value) -> None:
@@ -2003,8 +2094,8 @@ class bot():
                 # do the real job in different thread
                 self._updater.dispatcher.run_async(
                                     self._do_read_news, update,
-                                    context, feed, last_n, show_news, convertnumbers,
-                                    update=update)
+                                    context, feed, last_n, show_news,
+                                    convertnumbers, update=update)
 
                 return MAIN
 
@@ -2073,7 +2164,7 @@ class bot():
         def start(self, token):
             pp = PicklePersistence(filename='text2cw_bot.data')
             self._updater = Updater(token, persistence=pp, use_context=True,
-                                    request_kwargs={'read_timeout': 10,})
+                                    request_kwargs={'read_timeout': 10, })
 
             # tell BotFather my list of commands
             commands = [[command, description]
@@ -2154,7 +2245,7 @@ if __name__ == "__main__":
     argp.add_argument('token',
                       help='Bot token (ask BotFather)')
     args = argp.parse_args()
-    
+
     if args.debug:
         logger.setLevel(logging.DEBUG)
     logger.debug("Debug enabled")
