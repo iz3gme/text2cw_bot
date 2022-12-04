@@ -1079,14 +1079,22 @@ class bot():
             if self._you_exist(update, context):
                 if len(context.args) > 0:
                     return self._set_word_max(update, context, context.args[0])
-
-                update.message.reply_text(
-                    "Current value is %i\n"
-                    "Which is the maximum lenght of word you want?"
-                    " (Use NONE for no limit)" %
-                    context.user_data["word max"],
-                    reply_markup=self._keyboard_none
-                )
+                if context.user_data["word max"] is None:
+                    update.message.reply_text(
+                        "You actually have no word lenght limit\n"
+                        "Which is the maximum lenght of word you want?"
+                        " (Use NONE for no limit)" %
+                        context.user_data["word max"],
+                        reply_markup=self._keyboard_none
+                    )
+                else:
+                    update.message.reply_text(
+                        "Current value is %i\n"
+                        "Which is the maximum lenght of word you want?"
+                        " (Use NONE for no limit)" %
+                         context.user_data["word max"],
+                         reply_markup=self._keyboard_none
+                    )
                 return TYPING_WORD_MAX
 
         def _accept_word_max(self, update: Update, context: CallbackContext
