@@ -1083,8 +1083,7 @@ class bot():
                     update.message.reply_text(
                         "You actually have no word lenght limit\n"
                         "Which is the maximum lenght of word you want?"
-                        " (Use NONE for no limit)" %
-                        context.user_data["word max"],
+                        " (Use NONE for no limit)",
                         reply_markup=self._keyboard_none
                     )
                 else:
