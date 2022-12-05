@@ -18,7 +18,7 @@ class dizionario():
         mi = '%i' % minl if minl is not None else ''
         ma = '%i' % maxl if maxl is not None else ''
                 
-        regexp = '^[%s]{%s,%s}$' % re.escape(chars), mi, ma)
+        regexp = '^[%s]{%s,%s}$' % (re.escape(chars), mi, ma)
         r = re.compile(regexp)
         
         return [ p for p in self._parole if r.match(p) ]
