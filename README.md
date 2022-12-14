@@ -14,9 +14,25 @@ written in the perfect style of "it just works" 0=)
 
 If you want to run your own copy of the bot you have to
 - install telegram bot library for python3 (https://python-telegram-bot.org/)
+  ```sh
+  pip install python-telegram-bot
+  ```
 - install ebook2cw and check binary is /usr/bin/ebook2cw
+  ```sh
+  sudo apt install ebook2cw
+  ```
 - install QSO (part of morse package) and check binary is /usr/bin/QSO
-- install python3-xhtml2pdf and UbuntuMono font (try sudo apt install python3-xhtml2pdf fonts-ubuntu) and check /usr/share/fonts/truetype/ubuntu/UbuntuMono-R.ttf exists
+  ```sh
+  sudo apt install morse
+  ```
+- install python3-xhtml2pdf and UbuntuMono font and check /usr/share/fonts/truetype/ubuntu/UbuntuMono-R.ttf exists
+  ```sh
+  sudo apt install python3-xhtml2pdf fonts-ubuntu
+  ```
+- install feedparser python library
+  ```sh
+  sudo apt install python3-feedparser
+  ```
 - ask botfather to create the bot token as usual
 - start the bot with
   ```sh
