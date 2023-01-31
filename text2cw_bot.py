@@ -131,7 +131,7 @@ def get_feed(feed_url, last_n=1, news_time=True, title_filter=None):
 
 def safe_file_name(name: str):
     # remove unsafe char from file name
-    pattern = re.compile("[/.]")
+    pattern = re.compile(" [^a-zA-Z0-9_]")
     return pattern.sub('', name)
 
 
@@ -719,7 +719,7 @@ class bot():
                 t = title.replace('-wpm-', str(w))
 
                 tempfilename = "/tmp/" + \
-                    safe_file_name(update.message.from_user.first_name) + \
+                    safe_file_name(update.message.from_user.name) + \
                     "_" + str(update.message.message_id) + "_" + t
                 command = ["/usr/bin/ebook2cw", "-c", "DONOTSEPARATECHAPTERS",
                            "-o", tempfilename, "-u"]
@@ -736,7 +736,7 @@ class bot():
                     # add fixed settings for filter and center freq
                     command.extend(["-B", "500", "-C", "800"])
                 command.extend(["-t", t])
-                command.extend(["-a", update.message.from_user.first_name])
+                command.extend(["-a", update.message.from_user.name])
                 command.extend(["-T", str(ANSWER_WAVEFORM.index(waveform))])
 
                 context.bot.send_chat_action(
@@ -752,7 +752,7 @@ class bot():
                                 action=ChatAction.UPLOAD_AUDIO)
                 if format == "audio":
                     newtempfilename = "/tmp/" + \
-                        update.message.from_user.first_name + "_" + t + ".mp3"
+                        safe_file_name(update.message.from_user.name) + "_" + t + ".mp3"
                     rename(tempfilename, newtempfilename)
                     tempfilename = newtempfilename
                     update.message.reply_audio(
