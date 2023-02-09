@@ -403,6 +403,10 @@ class bot():
                     self._groups_exercise, None, None],
                 ['wpm', 'Set speed in words per minute', self._cmd_wpm,
                     TYPING_WPM, self._accept_wpm],
+                ['send_callsign',
+                    'Pickup a random callsign using'
+                    ' only current charset and send it',
+                    self._send_callsign, None, None],
                 ['send_word',
                     'Pickup a random word from (italian) dictionary using'
                     ' only current charset and send it',
@@ -1174,6 +1178,51 @@ class bot():
                                     context, feed, last_n, show_news,
                                     convertnumbers, sign, update=update)
                 return MAIN
+
+        def _send_callsign(self, update: Update, context: CallbackContext
+                       ) -> None:
+            if self._you_exist(update, context):
+                charset = context.user_data['charset']
+
+                try:
+                    d = self._callsign_list
+                except AttributeError:
+                    # try loading dictionary
+                    try:
+                        self._callsign_list = dizionario(filename='callsigns.txt')
+                    except Exception as e:
+                        logger.error(msg="Exception loading callsigns file:",
+                                     exc_info=e)
+                        # notify the user
+                        update.message.reply_text(
+                            "I'm sorry but I could not find the callsigns list,"
+                            " please try again\n"
+                            "If it happens again send a message to my creator"
+                            " @IZ3GME to fix it")
+                        return None
+                    d = self._callsign_list
+
+                try:
+                    text = choice(d.anagrammi(charset))
+                except IndexError:
+                    # no word found, let the user know
+                    update.message.reply_text(
+                        "I'm sorry but I could not find any callsign\n"
+                        "Try with more letters in charset")
+                    return None
+
+                # text is hidden by a spoiler
+                update.message.reply_text('||'
+                                          + escape_markdown(text, version=2)
+                                          + '||',
+                                          parse_mode=ParseMode.MARKDOWN_V2)
+                # do the real job in differt thread
+                self._updater.dispatcher.run_async(
+                                    self._reply_with_audio,
+                                    update,
+                                    context,
+                                    text,
+                                    update=update)
 
         def _send_word(self, update: Update, context: CallbackContext
                        ) -> None:
