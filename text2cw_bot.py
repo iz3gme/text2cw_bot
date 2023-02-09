@@ -456,9 +456,9 @@ class bot():
                 ['help', 'ask for help message', self._cmd_help, None, None],
                 ['settings', 'show current settings', self._cmd_settings,
                     None, None],
-                ['horoscope', 'Read horoscope (in italian)',
-                    self._cmd_horoscope, TYPING_SIGN,
-                    self._accept_sign],
+#                ['horoscope', 'Read horoscope (in italian)',
+#                    self._cmd_horoscope, TYPING_SIGN,
+#                    self._accept_sign],
             ]
 
         @property
