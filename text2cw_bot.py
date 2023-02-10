@@ -2183,6 +2183,16 @@ class bot():
                     "Sorry, this is something I can't understand")
                 return None
 
+        def _handle_unknown_leave(self, update: Update, context: CallbackContext
+                            ) -> None:
+            logger.debug('bot._handle_unknown_leave')
+            if self._you_exist(update, context):
+                update.message.reply_text(
+                    "Sorry, this is not valid now, use /leave if you want"
+                    "to go back without changing current value"
+                  )
+                return None
+
         def _handle_text(self, update: Update, context: CallbackContext
                          ) -> None:
             if self._you_exist(update, context):
@@ -2242,6 +2252,7 @@ class bot():
                             Filters.text & ~Filters.command, accept_method
                         ),
                         CommandHandler('leave', self._cmd_leave),
+                        MessageHandler(Filters.all, self._handle_unknown_leave),
                     ]
                 for command, description, method, typing_state, accept_method
                 in self._commands
