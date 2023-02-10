@@ -323,7 +323,7 @@ def convert_numbers(s: str):
     return s
 
 NEWS_FEED = 'https://www.ansa.it/sito/ansait_rss.xml'
-HOROSCOPE_FEED = 'http://it.horoscopofree.com/rss/horoscopofree-it.rss'
+#HOROSCOPE_FEED = 'http://it.horoscopofree.com/rss/horoscopofree-it.rss'
 
 DEFAULTS = {
     'wpm': [25],
@@ -334,7 +334,7 @@ DEFAULTS = {
     'format': ANSWER_FORMATS[0],
     'delmessage': False,
     'feed': NEWS_FEED,
-    'horoscope feed': HOROSCOPE_FEED,
+#    'horoscope feed': HOROSCOPE_FEED,
     'news to read': 5,
     'show news': False,
     'qrq': None,
