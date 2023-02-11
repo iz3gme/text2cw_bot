@@ -1233,7 +1233,7 @@ class bot():
                 try:
                     nwords = int(context.args[0]) if len(context.args) == 1 else 1
                 except ValueError:
-                    update.message.reply_text("Hey! %s is not a number!")
+                    update.message.reply_text("Hey! %s is not a number!" % (context.args[0]))
                     return None
                 if not 1<=nwords<=100:
                     update.message.reply_text("Sorry, i'm lazy so I don't send more the 100 words at once")
