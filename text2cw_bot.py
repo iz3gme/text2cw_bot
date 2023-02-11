@@ -408,8 +408,9 @@ class bot():
                     ' only current charset and send it',
                     self._send_callsign, None, None],
                 ['send_word',
-                    'Pickup a random word from (italian) dictionary using'
-                    ' only current charset and send it',
+                    'Pickup a random words from (italian) dictionary using'
+                    ' only current charset and send it, follow the command'
+                    ' with the number of desired words (default just one)',
                     self._send_word, None, None],
                 ['word_max', 'Set max word lenght', self._cmd_word_max,
                     TYPING_WORD_MAX, self._accept_word_max],
@@ -1229,7 +1230,14 @@ class bot():
             if self._you_exist(update, context):
                 charset = context.user_data['charset']
                 maxl = context.user_data['word max']
-
+                try:
+                    nwords = int(context.args[0]) if len(context.args) == 1 else 1
+                except ValueError:
+                    update.message.reply_text("Hey! %s is not a number!")
+                    return None
+                if not 1<=nwords<=100:
+                    update.message.reply_text("Sorry, i'm lazy so I don't send more the 100 words at once")
+                    return None
                 try:
                     d = self._dictionary
                 except AttributeError:
@@ -1249,7 +1257,7 @@ class bot():
                     d = self._dictionary
 
                 try:
-                    text = choice(d.anagrammi(charset, minl=2, maxl=maxl))
+                    text = " ".join(choices(d.anagrammi(charset, minl=2, maxl=maxl), k=nwords))
                 except IndexError:
                     # no word found, let the user know
                     update.message.reply_text(
