@@ -1257,13 +1257,20 @@ class bot():
                     d = self._dictionary
 
                 try:
-                    text = " ".join(choices(d.anagrammi(charset, minl=2, maxl=maxl), k=nwords))
+                    text = " ".join(sample(d.anagrammi(charset, minl=2, maxl=maxl), nwords))
                 except IndexError:
                     # no word found, let the user know
                     update.message.reply_text(
                         "I'm sorry but I could not find any word\n"
                         "Try with more letters in charset and with greater max"
                         " lenght")
+                    return None
+                except ValueError:
+                    # user requested more words then the available anagrammi
+                    update.message.reply_text(
+                        "I'm sorry but I could not find enough word for you\n"
+                        "Try with more letters in charset, greater max lenght"
+                        " or less requested words")
                     return None
 
                 # text is hidden by a spoiler
