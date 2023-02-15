@@ -405,7 +405,8 @@ class bot():
                     TYPING_WPM, self._accept_wpm],
                 ['send_callsign',
                     'Pickup a random callsign using'
-                    ' only current charset and send it',
+                    ' only current charset and send it, follow the command'
+                    ' with the number of desired calls (default just one)',
                     self._send_callsign, None, None],
                 ['send_word',
                     'Pickup a random words from (italian) dictionary using'
@@ -1184,6 +1185,14 @@ class bot():
                        ) -> None:
             if self._you_exist(update, context):
                 charset = context.user_data['charset']
+                try:
+                    ncall = int(context.args[0]) if len(context.args) == 1 else 1
+                except ValueError:
+                    update.message.reply_text("Hey! %s is not a number!" % (context.args[0]))
+                    return None
+                if not 1<=ncall<=100:
+                    update.message.reply_text("Sorry, I'm lazy so I don't send more then 100 callsign at once")
+                    return None
 
                 try:
                     d = self._callsign_list
@@ -1204,13 +1213,19 @@ class bot():
                     d = self._callsign_list
 
                 try:
-                    text = choice(d.anagrammi(charset))
+                    text = " ".join(sample(d.anagrammi(charset), ncall))
                 except IndexError:
-                    # no word found, let the user know
+                    # no call found, let the user know
                     update.message.reply_text(
                         "I'm sorry but I could not find any callsign\n"
                         "Try with more letters in charset")
                     return None
+                except ValueError:
+                    # user requested more callsign then available
+                    update.message.reply_text(
+                        "I'm sorry but I could not find enough callsign for you\n"
+                        "Try with more letters in charset"
+                        " or less requested callsigns")
 
                 # text is hidden by a spoiler
                 update.message.reply_text('||'
@@ -1236,8 +1251,9 @@ class bot():
                     update.message.reply_text("Hey! %s is not a number!" % (context.args[0]))
                     return None
                 if not 1<=nwords<=100:
-                    update.message.reply_text("Sorry, i'm lazy so I don't send more the 100 words at once")
+                    update.message.reply_text("Sorry, I'm lazy so I don't send more then 100 words at once")
                     return None
+
                 try:
                     d = self._dictionary
                 except AttributeError:
