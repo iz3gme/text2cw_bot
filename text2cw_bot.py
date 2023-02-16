@@ -933,10 +933,10 @@ class bot():
                     return self._set_charset(update, context,
                                              " ".join(context.args))
 
+                update.message.reply_text("Current charset is")
+                update.message.reply_text("%s"  % context.user_data["charset"])
                 update.message.reply_text(
-                    "Current charset is\n%s\n"
-                    "Which charset should I use to generate groups?"
-                    % context.user_data["charset"],
+                    "Which charset should I use to generate groups?",
                     reply_markup=self._keyboard_charset
                 )
                 return TYPING_CHARSET
