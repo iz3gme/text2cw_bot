@@ -37,6 +37,7 @@ from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove, \
     KeyboardButton, ChatAction, ParseMode
 from telegram.ext.dispatcher import run_async
 from telegram.utils.helpers import escape_markdown
+from telegram.error import BadRequest
 from xhtml2pdf import pisa
 
 import subprocess
@@ -766,10 +767,17 @@ class bot():
                                         title=t,
                                         reply_markup=reply_markup)
                 else:  # default to voice format
-                    update.message.reply_voice(
+                    try:
+                        update.message.reply_voice(
                                         voice=open(tempfilename, "rb"),
                                         caption=t,
                                         reply_markup=reply_markup)
+                    except BadRequest as e:
+                        if e.message == 'Voice_messages_forbidden':
+                            update.message.reply_text("Can't send voice to you, please change your privacy settings to allow me")
+                        else:
+                            raise e
+
                 remove(tempfilename)
 
         def _do_qso(self, update: Update, context: CallbackContext, show_news):
