@@ -97,11 +97,12 @@ def get_feed(feed_url, last_n=1, news_time=True, title_filter=None):
 
             if title_filter is None or title is None or title_filter.lower() in title.lower():
                 entry = list()
-                if published and news_time:
+                if published:
                     k = published
-                    entry.append(strftime("%d/%m/%Y %H:%M", published))
                 else:
                     k = i
+                if news_time:
+                    entry.append(strftime("%d/%m/%Y %H:%M", published))
                 if title:
                     entry.append(title)
                 if summary:
