@@ -25,7 +25,7 @@ this program. If not, see <http://www.gnu.org/licenses/>.
 __author__ = "Marco Filippi IZ3GME"
 __authors__ = ["IZ3GME", ]
 __contact__ = "iz3gme.marco@gmail.com"
-__copyright__ = "Copyright 2021 IZ3GME, Marco Filippi"
+__copyright__ = "Copyright 2021-2024 IZ3GME, Marco Filippi"
 __license__ = "GPLv3"
 __status__ = "Production"
 __version__ = "0.0.1"
@@ -750,6 +750,9 @@ class bot():
                 context.bot.send_chat_action(
                                 chat_id=update.effective_message.chat_id,
                                 action=ChatAction.RECORD_AUDIO)
+                # remove dangerous chars
+                text = text.translate(str.maketrans("#", " "))
+                
                 subprocess.run(command,
                                input=bytes(text+"\n", encoding='utf8'))
                 # ebook2cw always add chapternumber and extension
