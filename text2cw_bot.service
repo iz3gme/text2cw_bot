@@ -4,10 +4,10 @@ After=basic.target
 
 [Service]
 Type=simple
-User=pi
-Group=pi
-WorkingDirectory=/home/pi/text2cw_bot
-ExecStart=/home/pi/text2cw_bot/text2cw_bot.py -s 0 '******* PUT YOUR BOT TOKEN HERE *******'
+User=text2cw
+Group=text2cw
+WorkingDirectory=/home/text2cw/text2cw_bot
+ExecStart=/home/text2cw/text2cw_bot/start_text2cw_bot.sh -s 0 '******* PUT YOUR BOT TOKEN HERE *******'
 ExecReload=/bin/kill $MAINPID
 Restart=always
 RestartSec=10

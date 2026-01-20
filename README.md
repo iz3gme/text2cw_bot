@@ -12,10 +12,15 @@ It was developped, tested and now lives - as @text2cw_bot https://t.me/text2cw_b
 rasperrypi but should run smoothly on any linux platform, please note that the code have been
 written in the perfect style of "it just works" 0=)
 
-If you want to run your own copy of the bot you have to
-- install telegram bot library for python3 (https://python-telegram-bot.org/)
+If you want to run your own copy of the bot i suggest create a virtual environment to avoid library version incompatibility (actually the problematic one is python-telegram-bot which in recent version is changed and my code would not run on them)
+- create virtual environment and activate it
   ```sh
-  pip install python-telegram-bot
+  python -m venv venv
+  source venv/bin/activate
+  ```
+- install telegram bot and all other required libraries
+  ```sh
+  pip install -r requirements.txt
   ```
 - install ebook2cw and check binary is /usr/bin/ebook2cw
   ```sh
@@ -25,20 +30,16 @@ If you want to run your own copy of the bot you have to
   ```sh
   sudo apt install morse
   ```
-- install python3-xhtml2pdf and UbuntuMono font and check /usr/share/fonts/truetype/ubuntu/UbuntuMono-R.ttf exists
+- install UbuntuMono font and check /usr/share/fonts/truetype/ubuntu/UbuntuMono-R.ttf exists
   ```sh
-  sudo apt install python3-xhtml2pdf fonts-ubuntu
-  ```
-- install feedparser python library
-  ```sh
-  sudo apt install python3-feedparser
+  sudo apt install fonts-ubuntu
   ```
 - ask botfather to create the bot token as usual
-- start the bot with
+- exit virtual environment and start the bot with
   ```sh
-  text2cw_bot.py -s 0 placeyourtokenhere
+  ./start_text2cw_bot.sh -s 0 placeyourtokenhere
   ```
-  and test it via telegram
+  now test it via telegram
 
 If everything is ok and you want to start it at boot you can copy _text2cw_bot.service_ in
 _/etc/systemd/system_ and put your bot token in there then start it with
